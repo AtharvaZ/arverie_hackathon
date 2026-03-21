@@ -15,6 +15,17 @@
   --text-muted: rgba(92, 61, 16, 0.45);
   --border: rgba(160, 120, 60, 0.22);
   --border-gold: rgba(200, 160, 40, 0.35);
+  /* desk scene colors */
+  --wall:        #EDE3CA;
+  --walnut:      #4A2E12;
+  --walnut-hi:   #6B4020;
+  --walnut-face: #2E1A08;
+  --paper:       #FFFDF5;
+  --paper-lo:    #E8DABB;
+  --leather:     #3C1E0C;
+  --leather-hi:  #5A3018;
+  --spine:       #200E04;
+
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -29,6 +40,11 @@
   margin: 0;
   padding: 0;
 }
+
+/* overflow-x:clip does NOT break position:sticky (unlike overflow:hidden).
+   Required so the desk zoom (scale 1.38) never spawns a horizontal scrollbar,
+   which would alter layout and break the deskInView() rect calculation. */
+html, body { overflow-x: clip; }
 
 html { scroll-behavior: smooth; }
 
