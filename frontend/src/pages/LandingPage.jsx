@@ -30,6 +30,93 @@ const prefersReduced =
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+// ─── Footer ──────────────────────────────────────────────────────────────────
+function Footer() {
+  return (
+    <footer className="w-full bg-[#1A383B] text-[#D9C396] font-serif py-32 flex flex-col items-center justify-center relative z-10 border-t border-[#D9C396]/10">
+      <h2 className="text-4xl italic mb-16 tracking-widest text-[#FAF6E6]">
+        Welcome to Arverié
+      </h2>
+      <div className="flex flex-col md:flex-row gap-16 px-12 max-w-6xl w-full text-center">
+        <div className="flex-1 flex flex-col items-center">
+          <div className="w-16 h-16 rounded-full bg-[#1A383B] border border-[#D9C396]/20 flex items-center justify-center mb-6 shadow-xl">
+            <svg
+              className="w-6 h-6 text-[#D9C396]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-2xl mb-4 text-[#E3CFA7] font-light">
+            Expressive Canvas
+          </h3>
+          <p className="font-sans text-sm tracking-wide opacity-75 leading-relaxed font-light">
+            Pour your feelings onto an open canvas. A distraction-free space
+            where your strokes reflect your inner state.
+          </p>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center">
+          <div className="w-16 h-16 rounded-full bg-[#1A383B] border border-[#D9C396]/20 flex items-center justify-center mb-6 shadow-xl">
+            <svg
+              className="w-6 h-6 text-[#D9C396]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-2xl mb-4 text-[#E3CFA7] font-light">
+            Empathic AI
+          </h3>
+          <p className="font-sans text-sm tracking-wide opacity-75 leading-relaxed font-light">
+            Receive warm, gentle reflections on your art. Our AI guide helps you
+            unpack your thoughts securely.
+          </p>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center">
+          <div className="w-16 h-16 rounded-full bg-[#1A383B] border border-[#D9C396]/20 flex items-center justify-center mb-6 shadow-xl">
+            <svg
+              className="w-6 h-6 text-[#D9C396]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+              />
+            </svg>
+          </div>
+          <h3 className="text-2xl mb-4 text-[#E3CFA7] font-light">
+            Mood Journal
+          </h3>
+          <p className="font-sans text-sm tracking-wide opacity-75 leading-relaxed font-light">
+            Collect your daily reflections. Turn your emotional history into a
+            timeless, beautifully bound archive.
+          </p>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const [soundOn, setSoundOn] = useState(true)
@@ -416,8 +503,8 @@ export default function LandingPage() {
           ref={btnRef}
           onClick={() => navigate('/session')}
           whileHover={{
-            backgroundColor: 'rgba(200,160,40,0.12)',
-            borderColor: 'rgba(200,160,40,0.8)',
+            backgroundColor: 'rgba(150,186,141,0.12)',
+            borderColor: 'rgba(59, 82, 53,0.8)',
             color: '#1a3a30',
             y: -2,
           }}
@@ -486,6 +573,7 @@ export default function LandingPage() {
         </div>
       </div>
     </div>
+    <Footer />
     <DeskSection />
     </div>
     </>
