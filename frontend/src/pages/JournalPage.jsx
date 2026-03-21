@@ -26,103 +26,52 @@ const PLACEHOLDER = [
       'Something opened today. In warm ochres and soft edges, a gentleness you sometimes forget you carry. You let the color breathe. This session felt like remembering — not something lost, but something patient.',
     thumbnail: null,
   },
+  {
+    id: 3,
+    date: 'Mar 12, 2026',
+    duration: '24 min',
+    mood: 'restless',
+    moodColor: '#8b2252',
+    letter:
+      'Reds and blacks in quick, unresolved strokes. The session was short — not because you ran out of things to say, but because some feelings ask only to be marked, not finished.',
+    thumbnail: null,
+  },
+  {
+    id: 4,
+    date: 'Mar 10, 2026',
+    duration: '61 min',
+    mood: 'expansive',
+    moodColor: '#2d7d9a',
+    letter:
+      'Horizons. Over an hour spent on something that kept opening. Blues deepening toward the center. You stayed with it even when it felt too large — and that is its own kind of courage.',
+    thumbnail: null,
+  },
+  {
+    id: 5,
+    date: 'Mar 7, 2026',
+    duration: '45 min',
+    mood: 'quiet',
+    moodColor: '#5a7a5a',
+    letter:
+      'Greens and near-whites. A session that moved like breath — slow, recurring, with small variations each time. Some days the canvas is a place to simply be.',
+    thumbnail: null,
+  },
+  {
+    id: 6,
+    date: 'Mar 3, 2026',
+    duration: '33 min',
+    mood: 'searching',
+    moodColor: '#b8860b',
+    letter:
+      'Warm golds pulled toward the edges, as if reaching. You came in without a direction and found one anyway — not a destination, but a leaning.',
+    thumbnail: null,
+  },
 ]
-
-/* ─── Book cover ─── */
-function JournalCover({ userName, onComplete }) {
-  return (
-    <motion.div
-      initial={{ scale: 0.15, rotateY: -28 }}
-      animate={[
-        { scale: 1, rotateY: -28, transition: { duration: 0.5, ease: [0.34, 1.2, 0.64, 1] } },
-        { rotateY: 0, transition: { duration: 0.85, ease: 'easeInOut', delay: 0.5 } },
-      ]}
-      onAnimationComplete={onComplete}
-      style={{
-        width: '180px', height: '240px',
-        position: 'relative',
-        perspective: '1000px',
-        transformStyle: 'preserve-3d',
-        cursor: 'default',
-      }}
-    >
-      {/* Cover body */}
-      <div
-        style={{
-          width: '100%', height: '100%',
-          background: '#4a2006',
-          borderRadius: '3px 12px 12px 3px',
-          border: '1px solid rgba(212,175,55,0.3)',
-          boxShadow: '6px 6px 28px rgba(0,0,0,0.5), inset 0 1px 0 rgba(212,175,55,0.18)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '12px',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Spine */}
-        <div
-          style={{
-            position: 'absolute',
-            left: 0, top: 0, bottom: 0,
-            width: '13px',
-            background: '#2e1303',
-            borderRadius: '3px 0 0 3px',
-          }}
-        />
-        {/* Page edge */}
-        <div
-          style={{
-            position: 'absolute',
-            right: '-7px', top: '5px', bottom: '5px',
-            width: '8px',
-            background: '#f0e4c0',
-            borderRadius: '0 2px 2px 0',
-            border: '1px solid rgba(170,140,80,0.25)',
-          }}
-        />
-        {/* Ornament diamond */}
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-          <path d="M14 2 L26 14 L14 26 L2 14 Z" stroke="rgba(212,175,55,0.55)" strokeWidth="1" fill="none" />
-          <path d="M14 7 L21 14 L14 21 L7 14 Z" stroke="rgba(212,175,55,0.3)" strokeWidth="0.8" fill="none" />
-        </svg>
-        <p style={{ fontFamily: 'Cinzel, serif', fontSize: '13px', color: 'rgba(212,175,55,0.9)', letterSpacing: '0.1em' }}>
-          {userName || 'Journal'}
-        </p>
-        <div style={{ width: '52px', height: '1px', background: 'rgba(212,175,55,0.28)' }} />
-        <p style={{ fontFamily: 'Cinzel, serif', fontSize: '8px', color: 'rgba(212,175,55,0.4)', letterSpacing: '0.2em' }}>
-          JOURNAL I
-        </p>
-      </div>
-    </motion.div>
-  )
-}
-
-/* ─── Dot indicators ─── */
-function DotRow({ activeCount }) {
-  return (
-    <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
-      {[0, 1, 2, 3].map((i) => (
-        <motion.div
-          key={i}
-          animate={{
-            background: i < activeCount
-              ? 'rgba(212,175,55,0.85)'
-              : 'rgba(212,175,55,0.18)',
-          }}
-          transition={{ duration: 0.3 }}
-          style={{ width: '7px', height: '7px', borderRadius: '50%' }}
-        />
-      ))}
-    </div>
-  )
-}
 
 /* ─── Single page ─── */
 function JournalPageContent({ entry, pageNum }) {
+  const [hovered, setHovered] = useState(false)
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
       {/* Header row */}
@@ -134,6 +83,8 @@ function JournalPageContent({ entry, pageNum }) {
       {/* Drawing thumbnail */}
       <div
         className="drawing-frame"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         style={{
           border: '1px solid var(--border)',
           borderRadius: '6px',
@@ -144,6 +95,8 @@ function JournalPageContent({ entry, pageNum }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          filter: hovered ? 'brightness(1.15)' : 'brightness(1)',
+          transition: 'filter 0.3s',
         }}
       >
         {entry.thumbnail ? (
@@ -324,12 +277,10 @@ function PageSpread({ entries, spreadIndex, onFlipForward, onFlipBack, flipping,
 export default function JournalPage() {
   const navigate = useNavigate()
   const [entries, setEntries] = useState(PLACEHOLDER)
-  const [phase, setPhase] = useState('cover') // cover | dots | spread
-  const [dotCount, setDotCount] = useState(0)
+  const [phase] = useState('spread')
   const [spreadIndex, setSpreadIndex] = useState(0)
   const [flipping, setFlipping] = useState(false)
   const [flipDir, setFlipDir] = useState(null)
-  const [closing, setClosing] = useState(false)
 
   // Fetch
   useEffect(() => {
@@ -337,20 +288,6 @@ export default function JournalPage() {
       if (data?.entries?.length) setEntries(data.entries)
     })
   }, [])
-
-  // Dot sequence after cover done
-  function onCoverComplete() {
-    setPhase('dots')
-    let count = 0
-    const t = setInterval(() => {
-      count++
-      setDotCount(count)
-      if (count >= 4) {
-        clearInterval(t)
-        setTimeout(() => setPhase('spread'), 400)
-      }
-    }, 1000)
-  }
 
   function flipForward() {
     const maxSpread = Math.ceil(entries.length / 2) - 1
@@ -366,8 +303,7 @@ export default function JournalPage() {
   }
 
   function handleClose() {
-    setClosing(true)
-    setTimeout(() => navigate(-1), 380)
+    navigate(-1)
   }
 
   const maxSpread = Math.ceil(entries.length / 2) - 1
@@ -375,7 +311,7 @@ export default function JournalPage() {
   return (
     <motion.div
       initial={{ opacity: 0 }}
-      animate={{ opacity: closing ? 0 : 1 }}
+      animate={{ opacity: 1 }}
       transition={{ duration: 0.38 }}
       onClick={(e) => e.target === e.currentTarget && handleClose()}
       style={{
@@ -408,30 +344,6 @@ export default function JournalPage() {
       </button>
 
       <AnimatePresence mode="wait">
-        {phase === 'cover' && (
-          <motion.div
-            key="cover"
-            exit={{ opacity: 0, scale: 1.04 }}
-            transition={{ duration: 0.28 }}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-          >
-            <JournalCover userName="Priyanshi" onComplete={onCoverComplete} />
-          </motion.div>
-        )}
-
-        {phase === 'dots' && (
-          <motion.div
-            key="dots"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-          >
-            <JournalCover userName="Priyanshi" onComplete={() => {}} />
-            <DotRow activeCount={dotCount} />
-          </motion.div>
-        )}
-
         {phase === 'spread' && (
           <motion.div
             key="spread"

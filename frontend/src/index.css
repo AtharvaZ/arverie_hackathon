@@ -10,6 +10,10 @@
   --gold: #c8a040;
   --gold-muted: rgba(200, 160, 40, 0.35);
   --gold-wash: rgba(200, 160, 40, 0.08);
+  --green: #1A383B;
+  --green-mid: #2d5a5e;
+  --green-muted: rgba(26, 56, 59, 0.38);
+  --green-wash: rgba(26, 56, 59, 0.09);
   --text: #3a2208;
   --text-secondary: #6b4c1e;
   --text-muted: rgba(92, 61, 16, 0.45);
@@ -90,11 +94,11 @@ body {
   font-size: 11px;
   letter-spacing: 0.1em;
   background: transparent;
-  border: 1px solid var(--border-gold);
+  border: 1px solid var(--green-muted);
   border-radius: var(--radius-xl);
   padding: 8px 20px;
   cursor: pointer;
-  color: var(--text-secondary);
+  color: var(--green);
   transition: all var(--transition);
   display: inline-flex;
   align-items: center;
@@ -102,8 +106,8 @@ body {
   gap: 6px;
 }
 .btn:hover {
-  background: var(--gold-wash);
-  border-color: var(--gold);
+  background: var(--green-wash);
+  border-color: var(--green);
   transform: translateY(-1px);
 }
 .btn:active { transform: scale(0.98); }
@@ -114,12 +118,12 @@ body {
 }
 
 .btn-primary {
-  background: rgba(200, 160, 40, 0.12);
-  border-color: var(--gold);
-  color: var(--text);
+  background: rgba(26, 56, 59, 0.12);
+  border-color: var(--green);
+  color: var(--green);
 }
 .btn-primary:hover {
-  background: rgba(200, 160, 40, 0.22);
+  background: rgba(26, 56, 59, 0.22);
 }
 
 /* ─── David Whyte drawing hover effect ─── */

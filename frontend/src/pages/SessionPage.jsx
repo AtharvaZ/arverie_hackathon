@@ -52,7 +52,7 @@ export default function SessionPage() {
   return (
     <div
       className="min-h-screen flex flex-col items-center w-full"
-      style={{ background: 'var(--bg)', paddingTop: '52px' }}
+      style={{ background: 'var(--bg)', paddingTop: '64px' }}
     >
       <TopBar />
 
@@ -87,7 +87,7 @@ export default function SessionPage() {
             style={{
               fontFamily: 'IM Fell English, serif',
               fontStyle: 'italic',
-              fontSize: '28px',
+              fontSize: '31px',
               color: 'var(--text)',
               margin: '24px 0',
             }}
@@ -106,7 +106,7 @@ export default function SessionPage() {
               className="text-center mb-8 mt-2"
               style={{
                 fontFamily: 'Cinzel, serif',
-                fontSize: '12px',
+                fontSize: '15px',
                 letterSpacing: '0.15em',
                 color: 'var(--text-muted)',
               }}
@@ -123,7 +123,7 @@ export default function SessionPage() {
                   }}
                   style={{
                     fontFamily: 'Cinzel, serif',
-                    fontSize: '11px',
+                    fontSize: '14px',
                     letterSpacing: '0.06em',
                     padding: '8px 18px',
                     borderRadius: '20px',
@@ -153,7 +153,7 @@ export default function SessionPage() {
                 width: '100%',
                 fontFamily: 'IM Fell English, serif',
                 fontStyle: 'italic',
-                fontSize: '18px',
+                fontSize: '21px',
                 color: 'var(--text)',
                 background: 'transparent',
                 border: 'none',
@@ -171,7 +171,7 @@ export default function SessionPage() {
               className="text-center mb-8 mt-2"
               style={{
                 fontFamily: 'Cinzel, serif',
-                fontSize: '12px',
+                fontSize: '15px',
                 letterSpacing: '0.15em',
                 color: 'var(--text-muted)',
               }}
@@ -207,7 +207,7 @@ export default function SessionPage() {
               <label
                 style={{
                   fontFamily: 'Cinzel, serif',
-                  fontSize: '10px',
+                  fontSize: '13px',
                   color: 'var(--gold)',
                   letterSpacing: '0.1em',
                   cursor: 'pointer',
@@ -255,7 +255,7 @@ export default function SessionPage() {
               className="text-center mb-8"
               style={{
                 fontFamily: 'Cinzel, serif',
-                fontSize: '12px',
+                fontSize: '15px',
                 letterSpacing: '0.15em',
                 color: 'var(--text-muted)',
               }}
@@ -287,7 +287,7 @@ export default function SessionPage() {
                   <p
                     style={{
                       fontFamily: 'Cinzel, serif',
-                      fontSize: '15px',
+                      fontSize: '18px',
                       color: 'var(--text)',
                       marginBottom: '8px',
                     }}
@@ -298,7 +298,7 @@ export default function SessionPage() {
                     style={{
                       fontFamily: 'IM Fell English, serif',
                       fontStyle: 'italic',
-                      fontSize: '16px',
+                      fontSize: '19px',
                       color: 'var(--text-secondary)',
                     }}
                   >
@@ -318,7 +318,7 @@ export default function SessionPage() {
             disabled={!isReady}
             style={{
               padding: '16px 48px',
-              fontSize: '13px',
+              fontSize: '16px',
               opacity: isReady ? 1 : 0.4,
               transform: isReady ? 'scale(1)' : 'scale(0.98)',
               pointerEvents: isReady ? 'auto' : 'none',
