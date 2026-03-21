@@ -167,9 +167,6 @@ const DESK_CSS = `
 .pencils:hover .pitem:nth-child(1) { animation-delay:0s; }
 .pencils:hover .pitem:nth-child(2) { animation-delay:.08s; }
 .pencils:hover .pitem:nth-child(3) { animation-delay:.16s; }
-.pencils:hover .pitem:nth-child(4) { animation-delay:.24s; }
-.pencils:hover .pitem:nth-child(5) { animation-delay:.32s; }
-.pencils:hover .pitem:nth-child(6) { animation-delay:.4s; }
 
 .pitem { position:relative; border-radius:1.5px 1.5px 0 0; }
 
@@ -249,14 +246,8 @@ const DESK_CSS = `
   transform:translateY(-10px) scale(1.02);
   box-shadow:0 22px 56px rgba(20,10,2,.46),0 8px 18px rgba(20,10,2,.28),inset 0 0 0 .5px rgba(200,168,75,.2);
 }
-.big-paper::before {
-  content:''; position:absolute; inset:0;
-  background:repeating-linear-gradient(transparent,transparent 27px,rgba(150,110,50,.09) 27px,rgba(150,110,50,.09) 28px);
-}
-.big-paper::after {
-  content:''; position:absolute; top:0; left:18%; bottom:0; width:.5px;
-  background:rgba(180,60,50,.09);
-}
+.big-paper::before { content:none; }
+.big-paper::after  { content:none; }
 .big-paper-shine {
   position:absolute; top:0; left:0; right:0; height:2px;
   background:linear-gradient(to right,transparent,rgba(255,235,180,.5),transparent);
@@ -341,9 +332,9 @@ const DESK_CSS = `
 .journal:hover .journal-label { opacity:1; }
 
 /* ── palette cards ── */
-.palette-cards { position:absolute; bottom:9%; left:5%; z-index:5; display:flex; gap:8px; }
+.palette-cards { position:absolute; bottom:9%; left:5%; z-index:5; display:flex; gap:10px; }
 .pal-card {
-  width:46px; height:60px; background:var(--paper); border-radius:2px;
+  width:60px; height:76px; background:var(--paper); border-radius:2px;
   box-shadow:0 3px 12px rgba(30,18,6,.28),0 1px 3px rgba(30,18,6,.16);
   display:flex; flex-direction:column; overflow:hidden;
   transform:rotate(var(--r));
@@ -352,7 +343,7 @@ const DESK_CSS = `
 .pal-card:hover { transform:rotate(var(--r)) translateY(-7px); box-shadow:0 12px 28px rgba(30,18,6,.36); }
 .pal-swatches { flex:1; display:flex; flex-direction:column; }
 .pal-swatch   { flex:1; }
-.pal-date     { font-size:5.5px; color:rgba(70,46,16,.46); padding:2px 4px; text-align:center; background:var(--paper); letter-spacing:.4px; }
+.pal-date     { font-size:12px; color:rgba(70,46,16,.72); padding:3px 4px; text-align:center; background:var(--paper); letter-spacing:.6px; font-weight:500; }
 
 /* ── stat papers ── */
 .stat-paper {
@@ -372,9 +363,9 @@ const DESK_CSS = `
 .sp-back:hover  { transform:rotate(-2deg) translateY(-7px);  box-shadow:0 14px 32px rgba(30,18,6,.36); }
 .sp-front { bottom:5%;  right:7%;  width:23%; transform:rotate(2.8deg); }
 .sp-front:hover { transform:rotate(2.8deg) translateY(-7px); box-shadow:0 14px 32px rgba(30,18,6,.36); }
-.stat-lbl  { font-family:'Cormorant Garamond',serif; font-size:7px;  color:rgba(70,46,16,.44); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:2px; position:relative; z-index:1; }
+.stat-lbl  { font-family:'Cormorant Garamond',serif; font-size:10px;  color:rgba(70,46,16,.44); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:2px; position:relative; z-index:1; }
 .stat-val  { font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:#1E1710; line-height:1; position:relative; z-index:1; }
-.stat-unit { font-size:6px; color:rgba(70,46,16,.34); margin-top:3px; letter-spacing:.5px; position:relative; z-index:1; }
+.stat-unit { font-size:11px; color:rgba(70,46,16,.34); margin-top:3px; letter-spacing:.5px; position:relative; z-index:1; }
 .stat-bars { display:flex; gap:2px; align-items:flex-end; height:22px; margin-top:6px; position:relative; z-index:1; }
 .stat-bar  { flex:1; border-radius:1px 1px 0 0; }
 `
@@ -560,12 +551,7 @@ export default function DeskSection() {
                   <div className="pitem pen pen-navy"   style={{ height: 80, transform: 'rotate(1deg)' }}>
                     <div className="pen-clip" />
                   </div>
-                  <div className="pitem pcl pcl-green"   style={{ height: 58, transform: 'rotate(-1deg)' }} />
-                  <div className="pitem pcl pcl-red"     style={{ height: 66, transform: 'rotate(2deg)' }} />
-                  <div className="pitem pen pen-charcoal" style={{ height: 75, transform: 'rotate(-1.5deg)' }}>
-                    <div className="pen-clip" />
-                  </div>
-                  <div className="pitem pcl pcl-blue"   style={{ height: 54, transform: 'rotate(1.5deg)' }} />
+                  <div className="pitem pcl pcl-green"  style={{ height: 58, transform: 'rotate(-1deg)' }} />
                 </div>
 
                 {/* Scattered papers */}
