@@ -28,3 +28,35 @@
 - [x] Update HUME_SYSTEM_PROMPT: concrete 3-step emotional presence, new USER-INITIATED CONVERSATION section
 
 **Review:** Workflow not followed at start — no plan written before implementation, no agent spawned. See lessons.md.
+
+---
+
+## Session: 2026-03-21 (pri/frontend-2d)
+
+### Task: Convert arverié_landing_desk.html → React + clean up dead pages
+
+**Implementation order:**
+
+- [ ] Add missing CSS vars (--walnut, --wall, --paper, etc.) to global CSS
+- [ ] Create `frontend/src/pages/DeskSection.jsx` — full desk scene from HTML
+- [ ] Edit `LandingPage.jsx` — add DeskSection after hero, fix scroll, name modal
+- [ ] Edit `App.jsx` — remove /dashboard route, DashboardPage import
+- [ ] Delete `DashboardPage.jsx`, `Navbar.jsx`, `AnimatedLogo.jsx`
+
+**Routes after cleanup:**
+
+- `/`            → LandingPage (hero + DeskSection)
+- `/session`     → SessionPage
+- `/canvas`      → CanvasPage
+- `/summary`     → SummaryPage
+- `/journal`     → JournalPage
+- `/journal/:id` → JournalPage
+
+**Review:**
+
+- [ ] Hero animates correctly
+- [ ] Desk scene renders with all CSS elements
+- [ ] Wheel-lock scroll animation works
+- [ ] Name modal gates desk navigation
+- [ ] /session and /journal links work from desk
+- [ ] No dead imports or routes
