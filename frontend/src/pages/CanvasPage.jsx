@@ -119,7 +119,7 @@ function AIPanel({ open, onToggle, messages, onSend }) {
                     style={{
                       fontFamily: "IM Fell English, serif",
                       fontStyle: "italic",
-                      fontSize: "12px",
+                      fontSize: "15px",
                       color: "var(--text-muted)",
                       textAlign: "center",
                       marginTop: "24px",
@@ -147,7 +147,7 @@ function AIPanel({ open, onToggle, messages, onSend }) {
                       style={{
                         fontFamily: "IM Fell English, serif",
                         fontStyle: "italic",
-                        fontSize: "13px",
+                        fontSize: "16px",
                         lineHeight: 1.7,
                         color: "var(--text)",
                       }}
@@ -179,7 +179,7 @@ function AIPanel({ open, onToggle, messages, onSend }) {
                     flex: 1,
                     fontFamily: "IM Fell English, serif",
                     fontStyle: "italic",
-                    fontSize: "13px",
+                    fontSize: "16px",
                     color: "var(--text)",
                     background: "transparent",
                     border: "1px solid var(--border)",
@@ -193,7 +193,7 @@ function AIPanel({ open, onToggle, messages, onSend }) {
                   className="btn"
                   style={{
                     padding: "7px 12px",
-                    fontSize: "12px",
+                    fontSize: "15px",
                     flexShrink: 0,
                   }}
                 >
@@ -285,49 +285,25 @@ export default function CanvasPage() {
       style={{ height: "100vh", display: "flex", flexDirection: "column" }}
     >
       {/* Top bar */}
-      <div
+      <TopBar
         style={{
-          height: "48px",
+          position: "relative",
+          height: "64px",
           background: "rgba(242,232,213,0.92)",
-          borderBottom: "1px solid var(--border)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
+          backdropFilter: "none",
+          WebkitBackdropFilter: "none",
           padding: "0 20px",
           flexShrink: 0,
         }}
       >
-        <span
-          style={{
-            fontFamily: "Cinzel, serif",
-            fontSize: "15px",
-            color: "#1a3a30",
-            letterSpacing: "0.12em",
-          }}
+        <button
+          className="btn"
+          onClick={handleFinish}
+          style={{ padding: "6px 16px", fontSize: "14px" }}
         >
-          Arverié
-        </span>
-        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <TopBar
-            style={{
-              position: "static",
-              height: "auto",
-              background: "none",
-              border: "none",
-              padding: 0,
-              backdropFilter: "none",
-            }}
-          >
-            <button
-              className="btn"
-              onClick={handleFinish}
-              style={{ padding: "6px 16px", fontSize: "14px" }}
-            >
-              Finish session
-            </button>
-          </TopBar>
-        </div>
-      </div>
+          Finish session
+        </button>
+      </TopBar>
 
       {/* Main area */}
       <div
