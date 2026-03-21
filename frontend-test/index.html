@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Arverié — Hume Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Georgia', serif;
+      background: #1a1a1a;
+      color: #e8dcc8;
+      padding: 24px;
+      min-height: 100vh;
+    }
+    h1 { font-size: 22px; color: #c8a040; margin-bottom: 4px; }
+    .subtitle { color: #888; font-size: 13px; margin-bottom: 28px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      max-width: 1100px;
+    }
+    .card {
+      background: #252525;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .card h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #c8a040;
+      margin-bottom: 16px;
+    }
+
+    .row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+    label { font-size: 12px; color: #999; min-width: 90px; }
+    input[type=text] {
+      flex: 1;
+      background: #1a1a1a;
+      border: 1px solid #444;
+      border-radius: 6px;
+      color: #e8dcc8;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-family: monospace;
+    }
+
+    button {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 13px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .btn-gold { background: #c8a040; color: #1a1a1a; font-weight: bold; }
+    .btn-green { background: #2d6a4f; color: #fff; }
+    .btn-red { background: #8b2020; color: #fff; }
+    .btn-blue { background: #1a3a6a; color: #fff; }
+    .btn-grey { background: #444; color: #ccc; }
+
+    .status {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .status.ok { background: #1d4a2d; color: #5ecb8a; }
+    .status.err { background: #4a1d1d; color: #e88; }
+    .status.idle { background: #333; color: #888; }
+    .status.warn { background: #4a3a1d; color: #e8c060; }
+
+    .log {
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      height: 280px;
+      overflow-y: auto;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    .log-entry { margin-bottom: 3px; }
+    .log-entry.in { color: #5ecb8a; }
+    .log-entry.out { color: #60a0e8; }
+    .log-entry.sys { color: #888; font-style: italic; }
+    .log-entry.err { color: #e87070; }
+    .log-entry.transcript { color: #e8dcc8; font-size: 12px; background: #1e1e1e; padding: 3px 6px; border-left: 2px solid #c8a040; }
+
+    .trigger-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .trigger-btn { width: 100%; font-size: 12px; padding: 10px; }
+
+    .viz {
+      height: 48px;
+      background: #111;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .viz-bar {
+      width: 3px;
+      background: #c8a040;
+      border-radius: 2px;
+      min-height: 2px;
+      transition: height 0.05s;
+    }
+
+    .full-width { grid-column: 1 / -1; }
+    .info { font-size: 12px; color: #777; line-height: 1.6; }
+    .info strong { color: #c8a040; }
+  </style>
+</head>
+<body>
+  <h1>Arverié — Hume EVI Test</h1>
+  <p class="subtitle">Test the full voice pipeline: session → Hume voice → canvas trigger injection</p>
+
+  <div class="grid">
+
+    <!-- SECTION 1: Session -->
+    <div class="card">
+      <h2>1 — Session</h2>
+
+      <div class="row">
+        <label>Backend URL</label>
+        <input type="text" id="backendUrl" value="http://localhost:8000" />
+      </div>
+      <div class="row">
+        <label>User ID</label>
+        <input type="text" id="userId" value="00000000-0000-0000-0000-000000000001" />
+      </div>
+      <div class="row">
+        <label>Session ID</label>
+        <input type="text" id="sessionId" placeholder="auto-generated on start" style="font-size:11px;" />
+      </div>
+      <div class="row">
+        <button class="btn-gold" onclick="startSession()">Start Session</button>
+        <span id="sessionStatus" class="status idle">No session</span>
+      </div>
+
+      <div class="row" style="margin-top:8px;">
+        <label>Intake</label>
+        <input type="text" id="intakeMood" value="anxious" style="max-width:100px;" />
+        <input type="text" id="intakeTranscript" value="I feel overwhelmed and disconnected lately." style="flex:1;" />
+      </div>
+      <div class="row">
+        <button class="btn-grey" onclick="sendIntake()" id="intakeBtn" disabled>Send Intake</button>
+        <span id="intakeStatus" class="status idle">—</span>
+      </div>
+    </div>
+
+    <!-- SECTION 2: Hume Voice -->
+    <div class="card">
+      <h2>2 — Voice (Hume EVI)</h2>
+
+      <div class="row">
+        <button class="btn-green" onclick="connectHume()" id="connectBtn" disabled>Connect to Hume</button>
+        <span id="humeStatus" class="status idle">Disconnected</span>
+      </div>
+
+      <div class="viz" id="viz">
+        <span style="color:#555;font-size:11px;">mic level</span>
+      </div>
+
+      <div class="row">
+        <button class="btn-blue" onclick="toggleMic()" id="micBtn" disabled>🎤 Start Speaking</button>
+        <button class="btn-red" onclick="disconnectHume()" id="disconnectBtn" disabled>Disconnect</button>
+      </div>
+
+      <div class="info" style="margin-top:10px;">
+        <strong>How it works:</strong> Mic audio → PCM 16kHz → base64 JSON → backend WS → Hume EVI.<br>
+        Hume responds with voice. Canvas triggers inject Claude responses mid-conversation.
+      </div>
+    </div>
+
+    <!-- SECTION 3: Canvas Triggers -->
+    <div class="card">
+      <h2>3 — Simulate Canvas Triggers</h2>
+
+      <p class="info" style="margin-bottom:12px;">
+        These call <strong>POST /session/canvas-snapshot</strong> with signal patterns that fire triggers.
+        The backend injects Claude's response into the active Hume session — Hume speaks it.
+      </p>
+
+      <div class="trigger-grid">
+        <button class="btn-grey trigger-btn" onclick="fireTrigger('erase_loop')" id="trigErase">🔄 Erase Loop</button>
+        <button class="btn-grey trigger-btn" onclick="fireTrigger('inactivity')" id="trigInactivity">⏸ Inactivity</button>
+        <button class="btn-grey trigger-btn" onclick="fireTrigger('color_shift')" id="trigColor">🎨 Color Shift</button>
+        <button class="btn-grey trigger-btn" onclick="fireTrigger('check_in')" id="trigCheckin">🕐 Check-in</button>
+        <button class="btn-grey trigger-btn" onclick="fireTrigger('quadrant_focus')" id="trigQuadrant">📍 Quadrant Focus</button>
+        <button class="btn-grey trigger-btn" onclick="fireTrigger('stroke_surge')" id="trigSurge">⚡ Stroke Surge</button>
+      </div>
+
+      <div id="triggerResult" class="status idle" style="margin-top:12px;width:100%;padding:8px 12px;">No trigger fired yet</div>
+    </div>
+
+    <!-- SECTION 4: Message Log -->
+    <div class="card">
+      <h2>4 — Message Log</h2>
+      <div class="log" id="log"></div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn-grey" onclick="clearLog()">Clear</button>
+        <span id="messageCount" class="status idle">0 messages</span>
+      </div>
+    </div>
+
+    <!-- SECTION 5: Transcripts -->
+    <div class="card full-width">
+      <h2>5 — Conversation</h2>
+      <div class="log" id="transcriptLog" style="height:160px;"></div>
+    </div>
+
+  </div>
+
+  <script>
+    // ─── State ───────────────────────────────────────────────────────────────
+    let sessionId = null;
+    let ws = null;
+    let audioContext = null;
+    let micStream = null;
+    let scriptProcessor = null;
+    let isRecording = false;
+    let messageCount = 0;
+    let intakeThemes = [];
+
+    // Audio playback queue
+    let audioQueue = [];
+    let isPlayingAudio = false;
+
+    // ─── Logging ─────────────────────────────────────────────────────────────
+    function log(msg, type = 'sys') {
+      const el = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      const time = new Date().toLocaleTimeString('en', { hour12: false });
+      entry.textContent = `[${time}] ${msg}`;
+      el.appendChild(entry);
+      el.scrollTop = el.scrollHeight;
+      messageCount++;
+      document.getElementById('messageCount').textContent = `${messageCount} messages`;
+      document.getElementById('messageCount').className = 'status ok';
+    }
+
+    function logTranscript(role, text) {
+      const el = document.getElementById('transcriptLog');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry transcript';
+      entry.textContent = `${role === 'user' ? '🎤 You' : '🎙 Arverié'}: ${text}`;
+      el.appendChild(entry);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+      messageCount = 0;
+      document.getElementById('messageCount').textContent = '0 messages';
+      document.getElementById('messageCount').className = 'status idle';
+    }
+
+    function setStatus(id, text, cls) {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.className = `status ${cls}`;
+    }
+
+    function getBackend() {
+      return document.getElementById('backendUrl').value.trim();
+    }
+
+    // ─── Session ──────────────────────────────────────────────────────────────
+    async function startSession() {
+      const userId = document.getElementById('userId').value.trim();
+      try {
+        log(`Starting session for user ${userId}...`);
+        const res = await fetch(`${getBackend()}/session/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId })
+        });
+        const data = await res.json();
+        sessionId = data.session_id;
+        document.getElementById('sessionId').value = sessionId;
+        setStatus('sessionStatus', `✓ ${sessionId.slice(0,8)}...`, 'ok');
+        log(`Session started: ${sessionId}`, 'in');
+        document.getElementById('connectBtn').disabled = false;
+        document.getElementById('intakeBtn').disabled = false;
+        enableTriggerBtns(true);
+      } catch (e) {
+        log(`Session start failed: ${e.message}`, 'err');
+        setStatus('sessionStatus', 'Error', 'err');
+      }
+    }
+
+    async function sendIntake() {
+      if (!sessionId) return;
+      const mood = document.getElementById('intakeMood').value;
+      const transcript = document.getElementById('intakeTranscript').value;
+      try {
+        log(`Sending intake...`);
+        const res = await fetch(`${getBackend()}/session/intake`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId, transcript, mood_checkin: mood })
+        });
+        const data = await res.json();
+        intakeThemes = data.themes || [];
+        setStatus('intakeStatus', `✓ themes: ${intakeThemes.join(', ')}`, 'ok');
+        log(`Intake → themes: [${intakeThemes.join(', ')}]`, 'in');
+        log(`Opening: "${data.opening_response}"`, 'in');
+        logTranscript('assistant', data.opening_response);
+      } catch (e) {
+        log(`Intake failed: ${e.message}`, 'err');
+        setStatus('intakeStatus', 'Error', 'err');
+      }
+    }
+
+    // ─── Hume WebSocket ───────────────────────────────────────────────────────
+    function connectHume() {
+      if (!sessionId) { log('Start a session first', 'err'); return; }
+      const wsUrl = getBackend().replace('http://', 'ws://').replace('https://', 'wss://');
+      log(`Connecting to ${wsUrl}/hume/session?session_id=${sessionId}...`);
+
+      ws = new WebSocket(`${wsUrl}/hume/session?session_id=${sessionId}`);
+      ws.binaryType = 'arraybuffer';
+
+      ws.onopen = () => {
+        setStatus('humeStatus', '● Connected', 'ok');
+        log('WebSocket connected to backend → Hume EVI', 'in');
+        document.getElementById('connectBtn').disabled = true;
+        document.getElementById('disconnectBtn').disabled = false;
+        document.getElementById('micBtn').disabled = false;
+      };
+
+      ws.onmessage = (event) => {
+        if (event.data instanceof ArrayBuffer) {
+          log(`[binary] ${event.data.byteLength} bytes`, 'in');
+          playAudioBuffer(event.data);
+          return;
+        }
+        try {
+          const msg = JSON.parse(event.data);
+          const t = msg.type || 'unknown';
+          log(`← [${t}] ${JSON.stringify(msg).slice(0, 120)}`, 'in');
+
+          if (t === 'audio_output' && msg.data) {
+            playWavBase64(msg.data);
+          } else if (t === 'user_message' && msg.message?.content) {
+            logTranscript('user', msg.message.content);
+          } else if (t === 'assistant_message' && msg.message?.content) {
+            logTranscript('assistant', msg.message.content);
+          } else if (t === 'error') {
+            log(`Hume error: ${msg.message || JSON.stringify(msg)}`, 'err');
+            setStatus('humeStatus', '⚠ Error', 'warn');
+          }
+        } catch (e) {
+          log(`[raw] ${String(event.data).slice(0, 100)}`, 'in');
+        }
+      };
+
+      ws.onerror = (e) => {
+        log('WebSocket error', 'err');
+        setStatus('humeStatus', '✗ Error', 'err');
+      };
+
+      ws.onclose = (e) => {
+        log(`WebSocket closed (code: ${e.code})`, 'sys');
+        setStatus('humeStatus', 'Disconnected', 'idle');
+        document.getElementById('connectBtn').disabled = false;
+        document.getElementById('disconnectBtn').disabled = true;
+        document.getElementById('micBtn').disabled = true;
+        stopMic();
+      };
+    }
+
+    function disconnectHume() {
+      if (ws) { ws.close(); ws = null; }
+      stopMic();
+    }
+
+    // ─── Microphone ────────────────────────────────────────────────────────────
+    async function toggleMic() {
+      if (isRecording) {
+        stopMic();
+      } else {
+        await startMic();
+      }
+    }
+
+    async function startMic() {
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
+        audioContext = new AudioContext({ sampleRate: 16000 });
+        const source = audioContext.createMediaStreamSource(micStream);
+        scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+
+        // Visualizer bars
+        const vizEl = document.getElementById('viz');
+        vizEl.innerHTML = '';
+        const bars = Array.from({ length: 32 }, () => {
+          const b = document.createElement('div');
+          b.className = 'viz-bar';
+          b.style.height = '4px';
+          vizEl.appendChild(b);
+          return b;
+        });
+
+        scriptProcessor.onaudioprocess = (e) => {
+          const float32 = e.inputBuffer.getChannelData(0);
+
+          // Visualize
+          const chunk = Math.floor(float32.length / bars.length);
+          bars.forEach((bar, i) => {
+            const slice = float32.slice(i * chunk, (i + 1) * chunk);
+            const rms = Math.sqrt(slice.reduce((s, v) => s + v * v, 0) / slice.length);
+            bar.style.height = `${Math.min(44, 4 + rms * 300)}px`;
+          });
+
+          if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+          // Convert Float32 → Int16
+          const int16 = new Int16Array(float32.length);
+          for (let i = 0; i < float32.length; i++) {
+            int16[i] = Math.max(-32768, Math.min(32767, float32[i] * 32768));
+          }
+
+          // Base64 encode and send
+          const b64 = arrayBufferToBase64(int16.buffer);
+          ws.send(JSON.stringify({ type: 'audio_input', data: b64 }));
+        };
+
+        source.connect(scriptProcessor);
+        scriptProcessor.connect(audioContext.destination);
+
+        isRecording = true;
+        document.getElementById('micBtn').textContent = '⏹ Stop Speaking';
+        document.getElementById('micBtn').className = 'btn-red';
+        log('Microphone started — speaking to Hume', 'sys');
+      } catch (e) {
+        log(`Mic error: ${e.message}`, 'err');
+      }
+    }
+
+    function stopMic() {
+      if (scriptProcessor) { scriptProcessor.disconnect(); scriptProcessor = null; }
+      if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+      if (audioContext) { audioContext.close(); audioContext = null; }
+      isRecording = false;
+      document.getElementById('micBtn').textContent = '🎤 Start Speaking';
+      document.getElementById('micBtn').className = 'btn-blue';
+      document.getElementById('viz').innerHTML = '<span style="color:#555;font-size:11px;">mic level</span>';
+    }
+
+    // ─── Audio Playback ────────────────────────────────────────────────────────
+    // Hume returns WAV-format base64 in audio_output messages.
+    // Use decodeAudioData which handles WAV natively.
+    let playbackCtx = null;
+    let nextPlayTime = 0;
+
+    function getPlaybackCtx() {
+      if (!playbackCtx || playbackCtx.state === 'closed') {
+        playbackCtx = new AudioContext();
+        nextPlayTime = 0;
+      }
+      return playbackCtx;
+    }
+
+    async function playWavBase64(base64data) {
+      try {
+        const buffer = base64ToArrayBuffer(base64data);
+        const ctx = getPlaybackCtx();
+        const decoded = await ctx.decodeAudioData(buffer);
+        const source = ctx.createBufferSource();
+        source.buffer = decoded;
+        source.connect(ctx.destination);
+        // Schedule sequentially so chunks don't overlap
+        const now = ctx.currentTime;
+        const startAt = Math.max(now, nextPlayTime);
+        source.start(startAt);
+        nextPlayTime = startAt + decoded.duration;
+        log(`♪ Audio chunk ${decoded.duration.toFixed(2)}s`, 'sys');
+      } catch (e) {
+        log(`Audio playback error: ${e.message}`, 'err');
+      }
+    }
+
+    async function playAudioBuffer(buffer) {
+      // Binary frame from Hume — decode as WAV/audio
+      try {
+        const ctx = getPlaybackCtx();
+        const decoded = await ctx.decodeAudioData(buffer);
+        const source = ctx.createBufferSource();
+        source.buffer = decoded;
+        source.connect(ctx.destination);
+        source.start(Math.max(ctx.currentTime, nextPlayTime));
+        nextPlayTime = Math.max(ctx.currentTime, nextPlayTime) + decoded.duration;
+      } catch (e) {
+        log(`Binary audio error: ${e.message}`, 'err');
+      }
+    }
+
+    // ─── Canvas Triggers ───────────────────────────────────────────────────────
+    function enableTriggerBtns(enabled) {
+      ['trigErase', 'trigInactivity', 'trigColor', 'trigCheckin', 'trigQuadrant', 'trigSurge']
+        .forEach(id => document.getElementById(id).disabled = !enabled);
+    }
+
+    async function fireTrigger(type) {
+      if (!sessionId) { log('Start a session first', 'err'); return; }
+
+      // Use a unique elapsed each call so history doesn't over-accumulate
+      const now = Math.floor(Date.now() / 1000) % 10000 + 300;
+      const eraseNearby = [
+        { timestamp: now - 20, x: 200, y: 200, radius: 20 },
+        { timestamp: now - 12, x: 208, y: 203, radius: 20 },
+        { timestamp: now - 5,  x: 204, y: 198, radius: 20 },
+      ];
+      // Combined base: erase_loop(3) + erase_localized(2) + inactivity(2) = 7 - cost(1) = 6 > threshold(5)
+      const strongBase = {
+        strokes_per_second: 0.2,
+        current_color: '#336699',
+        colors_used_this_window: ['#336699'],
+        erase_events: eraseNearby,
+        quadrant_distribution: { top_left: 0.25, top_right: 0.25, bottom_left: 0.25, bottom_right: 0.25 },
+        last_stroke_timestamp: now - 15,  // 15s idle → inactivity fires
+        elapsed_seconds: now,
+      };
+      const snapshots = {
+        erase_loop: strongBase,
+        inactivity: strongBase,
+        color_shift: { ...strongBase, current_color: '#FF0000', colors_used_this_window: ['#FF0000', '#0000FF'] },
+        check_in: strongBase,
+        quadrant_focus: {
+          ...strongBase,
+          quadrant_distribution: { top_left: 0.75, top_right: 0.08, bottom_left: 0.09, bottom_right: 0.08 },
+        },
+        stroke_surge: {
+          ...strongBase,
+          strokes_per_second: 8.5,
+          last_stroke_timestamp: now - 1,
+        },
+      };
+
+      const snapshot = snapshots[type] || snapshots.check_in;
+
+      try {
+        log(`Firing trigger: ${type} (session: ${sessionId?.slice(0,8)}...)`, 'out');
+        const res = await fetch(`${getBackend()}/session/canvas-snapshot`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId,
+            snapshot,
+            dialogue_history: [],
+            intake_themes: intakeThemes,
+          })
+        });
+        const rawText = await res.text();
+        log(`Raw response [${res.status}]: ${rawText.slice(0, 200)}`, 'sys');
+        const data = JSON.parse(rawText);
+        if (data.triggered) {
+          const msg = `✓ Triggered [${data.trigger_type}]: "${data.response}"`;
+          document.getElementById('triggerResult').textContent = msg;
+          document.getElementById('triggerResult').className = 'status ok';
+          log(msg, 'in');
+          logTranscript('assistant', data.response);
+        } else {
+          document.getElementById('triggerResult').textContent = `Not triggered (flow: ${data.flow_intensity})`;
+          document.getElementById('triggerResult').className = 'status idle';
+          log(`No trigger — flow: ${data.flow_intensity}`, 'sys');
+        }
+      } catch (e) {
+        log(`Trigger call failed: ${e.message}`, 'err');
+      }
+    }
+
+    // ─── Utils ─────────────────────────────────────────────────────────────────
+    function arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+      return btoa(binary);
+    }
+
+    function base64ToArrayBuffer(base64) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes.buffer;
+    }
+
+    // ─── Init ──────────────────────────────────────────────────────────────────
+    enableTriggerBtns(false);
+    log('Ready. Click "Start Session" to begin.', 'sys');
+  </script>
+</body>
+</html>

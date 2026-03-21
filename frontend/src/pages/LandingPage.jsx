@@ -9,8 +9,11 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { gsap } from 'gsap'
 import logoSvgRaw from '../assets/logo.svg?raw'
+import DeskSection from './DeskSection'
 
 // ─── Color buckets (empirically from SVG fill audit) ────────────────────────
 
@@ -74,6 +77,7 @@ const prefersReduced =
 // ─────────────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const [soundOn, setSoundOn] = useState(true)
+  const navigate = useNavigate()
 
   // Layout refs
   const sceneRef         = useRef(null)
@@ -88,6 +92,7 @@ export default function LandingPage() {
   const lineLeftRef   = useRef(null)
   const lineRightRef  = useRef(null)
   const subtitleRef   = useRef(null)
+  const btnRef        = useRef(null)
   const scrollHintRef = useRef(null)
   const navRef        = useRef(null)
   const navEkgRef     = useRef(null)
@@ -126,15 +131,14 @@ export default function LandingPage() {
 
     const allPaths = [...svg.querySelectorAll('path')]
 
-    // ── Remove black background rect (first path, covers full canvas)
+    // ── Remove black background rect (first path, covers full canvas at M475)
+    // The background path is the first #000000 path; it spans the entire viewBox.
+    // We identify it by being the first path with fill="#000000" — hide it outright.
+    let hiddenBg = false
     allPaths.forEach(p => {
-      if (p.getAttribute('fill') === '#000000') {
-        const d = p.getAttribute('d') || ''
-        const m = d.match(/M[\s\n]*([\d.]+)/)
-        // Background rect starts at x > 600 (bottom-right corner of canvas)
-        if (m && parseFloat(m[1]) > 600) {
-          p.setAttribute('fill', 'transparent')
-        }
+      if (!hiddenBg && p.getAttribute('fill') === '#000000') {
+        p.style.display = 'none'
+        hiddenBg = true
       }
     })
 
@@ -144,7 +148,8 @@ export default function LandingPage() {
     const restPaths   = allPaths.filter(p =>
       !FACE_FILLS.has(p.getAttribute('fill')) &&
       !ALL_LEAF_FILLS.has(p.getAttribute('fill')) &&
-      p.getAttribute('fill') !== '#000000'
+      p.getAttribute('fill') !== '#000000' &&
+      p.style.display !== 'none'
     )
 
     // ── Sort by x-position for directional sweep
@@ -187,6 +192,7 @@ leafPaths.forEach(p => {
     gsap.set(lineLeftRef.current, { width: 0 })
     gsap.set(lineRightRef.current, { width: 0 })
     gsap.set(subtitleRef.current, { opacity: 0, y: 10 })
+    gsap.set(btnRef.current, { opacity: 0, y: 10 })
     gsap.set(scrollHintRef.current, { opacity: 0 })
 
     const ctx = gsap.context(() => {
@@ -277,8 +283,11 @@ leafPaths.forEach(p => {
       // ─ 3.5s  Navbar ──────────────────────────────────────────────────────
       tl.to(navRef.current, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 3.5)
 
-      // ─ 4.0s  Scroll hint ─────────────────────────────────────────────────
-      tl.to(scrollHintRef.current, { opacity: 1, duration: 0.45 }, 4.0)
+      // ─ 3.6s  Begin Session button ────────────────────────────────────────
+      tl.to(btnRef.current, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, 3.6)
+
+      // ─ 4.2s  Scroll hint ─────────────────────────────────────────────────
+      tl.to(scrollHintRef.current, { opacity: 1, duration: 0.45 }, 4.2)
     }, sceneRef)
 
     return () => ctx.revert()
@@ -349,6 +358,13 @@ leafPaths.forEach(p => {
 
   // ─── Render ──────────────────────────────────────────────────────────────
   return (
+    <>
+    <style>{`
+      .nav-logo { height: 36px; width: auto; max-width: 120px; line-height: 0; flex-shrink: 0; overflow: hidden; }
+      .nav-logo svg { height: 100%; width: auto; max-width: 100%; display: block; }
+      .nav-logo svg path[fill="#000000"] { display: none; }
+    `}</style>
+    <div>
     <div
       ref={sceneRef}
       style={{
@@ -361,7 +377,7 @@ leafPaths.forEach(p => {
         backgroundRepeat: 'repeat',
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        overflow: 'hidden', position: 'relative',
+        position: 'relative',
         perspective: '1000px',
       }}
     >
@@ -393,12 +409,10 @@ leafPaths.forEach(p => {
           zIndex: 50,
         }}
       >
-        <span style={{
-          fontFamily: 'Cinzel, serif', fontSize: '16px',
-          color: '#1a3a30', letterSpacing: '0.1em',
-        }}>
-          Arverié
-        </span>
+        <div
+          className="nav-logo"
+          dangerouslySetInnerHTML={{ __html: logoSvgRaw }}
+        />
 
         <button
           onClick={toggleSound}
@@ -544,19 +558,49 @@ leafPaths.forEach(p => {
           style={{
             fontFamily: 'Cinzel, serif', fontSize: '11px',
             letterSpacing: '0.4em', color: 'var(--gold)',
-            textTransform: 'uppercase', marginBottom: '32px',
+            textTransform: 'uppercase', marginBottom: '28px',
             opacity: 0,
           }}
         >
           AI ART THERAPY
         </p>
 
-        {/* Scroll hint */}
+        {/* Begin Session button */}
+        <motion.button
+          ref={btnRef}
+          onClick={() => navigate('/session')}
+          whileHover={{
+            backgroundColor: 'rgba(200,160,40,0.12)',
+            borderColor: 'rgba(200,160,40,0.8)',
+            color: '#1a3a30',
+            y: -2,
+          }}
+          whileTap={{ scale: 0.97 }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            fontFamily: 'Cinzel, serif', fontSize: '11px',
+            letterSpacing: '0.22em', color: 'var(--gold)',
+            background: 'transparent',
+            border: '1.5px solid var(--gold)',
+            borderRadius: '999px',
+            padding: '12px 36px',
+            cursor: 'pointer',
+            marginBottom: '36px',
+            opacity: 0,
+            transition: 'background-color 0.22s ease, border-color 0.22s ease, color 0.22s ease',
+          }}
+        >
+          <span style={{ fontSize: '8px', opacity: 0.7, color: 'var(--gold)' }}>◆</span>
+          Begin Your Session
+          <span style={{ fontSize: '8px', opacity: 0.7, color: 'var(--gold)' }}>◆</span>
+        </motion.button>
+
+        {/* Scroll hint — Genshin-styled rounded scroll indicator */}
         <div
           ref={scrollHintRef}
           style={{
-            marginTop: '40px', display: 'flex', flexDirection: 'column',
-            alignItems: 'center', gap: '8px', opacity: 0,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', gap: '10px', opacity: 0,
           }}
         >
           <span style={{
@@ -566,13 +610,38 @@ leafPaths.forEach(p => {
           }}>
             scroll to enter
           </span>
-          <div className="bounce">
-            <svg width="14" height="8" viewBox="0 0 14 8" fill="none">
-              <path d="M1 1L7 7L13 1" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
+          <motion.div
+            whileHover={{ borderColor: 'rgba(200,160,40,0.75)' }}
+            style={{
+              position: 'relative',
+              width: '38px', height: '56px',
+              borderRadius: '999px',
+              border: '1.5px solid rgba(200,160,40,0.45)',
+              background: 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              overflow: 'hidden',
+              cursor: 'default',
+              transition: 'border-color 0.22s ease',
+            }}
+          >
+            {/* Inner glow */}
+            <div style={{
+              position: 'absolute', inset: 0,
+              borderRadius: '999px',
+              background: 'radial-gradient(ellipse at center bottom, rgba(200,160,40,0.18) 0%, transparent 70%)',
+              pointerEvents: 'none',
+            }} />
+            <div className="bounce">
+              <svg width="18" height="10" viewBox="0 0 18 10" fill="none">
+                <path d="M1 1L9 9L17 1" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </motion.div>
         </div>
       </div>
     </div>
+    <DeskSection />
+    </div>
+    </>
   )
 }
