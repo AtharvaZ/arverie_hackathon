@@ -1,0 +1,196 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Google Fonts loaded in index.html ─── */
+
+:root {
+  --bg: #f2e8d5;
+  --bg-card: rgba(255, 250, 238, 0.88);
+  --gold: #c8a040;
+  --gold-muted: rgba(200, 160, 40, 0.35);
+  --gold-wash: rgba(200, 160, 40, 0.08);
+  --text: #3a2208;
+  --text-secondary: #6b4c1e;
+  --text-muted: rgba(92, 61, 16, 0.45);
+  --border: rgba(160, 120, 60, 0.22);
+  --border-gold: rgba(200, 160, 40, 0.35);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 24px;
+  --shadow: 0 4px 16px rgba(60, 30, 8, 0.15);
+  --transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  --spring: 0.5s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'IM Fell English', Georgia, serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ─── Typography helpers ─── */
+.cinzel { font-family: 'Cinzel', serif; }
+.imfell { font-family: 'IM Fell English', Georgia, serif; }
+.imfell-italic { font-family: 'IM Fell English', Georgia, serif; font-style: italic; }
+
+/* ─── Card base (all cards) ─── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-muted), transparent);
+  pointer-events: none;
+}
+
+/* ─── Button base ─── */
+.btn {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  background: transparent;
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-xl);
+  padding: 8px 20px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btn:hover {
+  background: var(--gold-wash);
+  border-color: var(--gold);
+  transform: translateY(-1px);
+}
+.btn:active { transform: scale(0.98); }
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: rgba(200, 160, 40, 0.12);
+  border-color: var(--gold);
+  color: var(--text);
+}
+.btn-primary:hover {
+  background: rgba(200, 160, 40, 0.22);
+}
+
+/* ─── David Whyte drawing hover effect ─── */
+.drawing-frame img {
+  filter: saturate(0.7) brightness(0.92) sepia(0.15);
+  transition: filter 0.8s ease;
+  display: block;
+  width: 100%;
+}
+.drawing-frame:hover img {
+  filter: saturate(1.2) brightness(1.05) sepia(0);
+}
+
+/* ─── Journal ruled lines ─── */
+.journal-ruled {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 24px,
+    rgba(150, 120, 70, 0.07) 24px,
+    rgba(150, 120, 70, 0.07) 25px
+  );
+}
+
+/* ─── Canvas layout ─── */
+.canvas-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ─── Plant sway animation ─── */
+@keyframes plantSway {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+.plant-sway {
+  animation: plantSway 2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+/* ─── Typewriter cursor blink ─── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.cursor-blink {
+  animation: blink 0.8s step-end infinite;
+  color: var(--gold);
+}
+
+/* ─── Scroll chevron bounce ─── */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+.bounce { animation: bounce 1.6s ease-in-out infinite; }
+
+/* ─── Brush size slider ─── */
+input[type='range'].brush-slider {
+  -webkit-appearance: none;
+  width: 72px;
+  height: 3px;
+  background: var(--border-gold);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type='range'].brush-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--gold);
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--gold-muted); border-radius: 3px; }
+
+/* ─── Logo background removal via mix-blend-mode ─── */
+/* Apply this class to any img that uses the logo PNG on a light background */
+.logo-img {
+  mix-blend-mode: multiply;
+  /* This makes the white bg transparent on parchment backgrounds */
+}
