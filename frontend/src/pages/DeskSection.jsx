@@ -6,10 +6,10 @@
  * Name modal uses framer-motion AnimatePresence.
  */
 
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useApp } from '../context/AppContext'
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { useApp } from "../context/AppContext";
 
 const DESK_CSS = `
 /* ══ DESK KEYFRAMES ══════════════════════════ */
@@ -368,149 +368,234 @@ const DESK_CSS = `
 .stat-unit { font-size:11px; color:rgba(70,46,16,.34); margin-top:3px; letter-spacing:.5px; position:relative; z-index:1; }
 .stat-bars { display:flex; gap:2px; align-items:flex-end; height:22px; margin-top:6px; position:relative; z-index:1; }
 .stat-bar  { flex:1; border-radius:1px 1px 0 0; }
-`
+
+/* ── Journal Opening Overlay ── */
+.journal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(26,56,59,0.8); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.book-anim-wrapper {
+  position: relative;
+  width: 160px; height: 240px;
+  perspective: 1200px;
+  animation: bookEnlarge 2.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes bookEnlarge {
+  0% { transform: scale(0.5); opacity: 0; }
+  12% { transform: scale(1.2); opacity: 1; }
+  85% { transform: scale(1.8); opacity: 1; }
+  100% { transform: scale(3.5); opacity: 0; }
+}
+
+.book-part {
+  position: absolute; inset: 0;
+  transform-style: preserve-3d;
+  transform-origin: left center;
+}
+
+.book-cover {
+  z-index: 10;
+  background: linear-gradient(148deg,#C4916A,#A87050,#8A5A38);
+  border-radius: 2px 6px 6px 2px;
+  box-shadow: inset 4px 0 10px rgba(0,0,0,0.1), 5px 5px 15px rgba(0,0,0,0.4);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  animation: coverFlip 2s 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.book-cover::before {
+  content: ''; position: absolute; inset: 8px;
+  border: .75px solid rgba(240,205,130,.4); border-radius: 1px 5px 5px 1px;
+}
+
+.book-back {
+  z-index: 1;
+  background: linear-gradient(148deg,#8A5A38,#A87050);
+  border-radius: 2px 6px 6px 2px;
+  box-shadow: 10px 20px 40px rgba(0,0,0,0.5);
+}
+
+.book-page {
+  background: #F8F0DA;
+  border-radius: 2px 4px 4px 2px;
+  box-shadow: inset 2px 0 5px rgba(0,0,0,0.05);
+}
+
+.bp1 { z-index: 8; animation: pageFlip 1.5s 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.bp2 { z-index: 7; animation: pageFlip 1.5s 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.bp3 { z-index: 6; animation: pageFlip 1.5s 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.bp-base { z-index: 5; }
+
+@keyframes coverFlip {
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(-160deg); }
+}
+
+@keyframes pageFlip {
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(-155deg); }
+}
+
+.book-orn { font-size: 20px; color: rgba(245,215,140,.9); }
+.book-name { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 600; color: #FFF4E0; letter-spacing: 3px; }
+.book-rule { width: 40px; height: 1px; background: linear-gradient(to right,transparent,rgba(245,215,140,.6),transparent); }
+.book-sub { font-size: 10px; color: rgba(255,235,185,.8); letter-spacing: 3px; text-transform: uppercase; }
+`;
 
 export default function DeskSection() {
-  const navigate = useNavigate()
-  const { user } = useApp()
+  const navigate = useNavigate();
+  const { user } = useApp();
 
   // modal state — show if no name (user.name is always set in AppContext for now)
-  const [showModal, setShowModal] = useState(false)
-  const [modalName, setModalName] = useState('')
-  const [pendingAction, setPendingAction] = useState(null)
+  const [showModal, setShowModal] = useState(false);
+  const [modalName, setModalName] = useState("");
+  const [pendingAction, setPendingAction] = useState(null);
+  const [isOpeningJournal, setIsOpeningJournal] = useState(false);
 
   // scroll animation refs — no state to avoid re-renders
-  const sectionRef  = useRef(null)
-  const deskWrapRef = useRef(null)
-  const wallNameRef = useRef(null)
-  const deskLegsRef = useRef(null)
-  const progressRef = useRef(0)
+  const sectionRef = useRef(null);
+  const deskWrapRef = useRef(null);
+  const wallNameRef = useRef(null);
+  const deskLegsRef = useRef(null);
+  const progressRef = useRef(0);
 
-  const TOTAL_PHASES = 2
+  const TOTAL_PHASES = 2;
 
   useEffect(() => {
     // All animation logic lives inside the effect so there is no stale-closure
     // risk — every function here always has a fresh reference to the DOM refs.
 
-    function lerp(a, b, t) { return a + (b - a) * t }
-    function clamp01(v) { return Math.max(0, Math.min(1, v)) }
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+    function clamp01(v) {
+      return Math.max(0, Math.min(1, v));
+    }
 
     function applyAnim(p) {
-      progressRef.current = Math.max(0, Math.min(TOTAL_PHASES, p))
+      progressRef.current = Math.max(0, Math.min(TOTAL_PHASES, p));
 
       // Phase 1 (0→1): flatten tilt
-      const p1   = clamp01(progressRef.current)
-      const rotX = lerp(18, 0,   p1)
-      const rotZ = lerp(-1, 0,   p1)
-      const sc1  = lerp(1.05, 1, p1)
+      const p1 = clamp01(progressRef.current);
+      const rotX = lerp(18, 0, p1);
+      const rotZ = lerp(-1, 0, p1);
+      const sc1 = lerp(1.05, 1, p1);
 
       // Phase 2 (1→2): zoom in
-      const p2   = clamp01(progressRef.current - 1)
-      const zoom = lerp(1, 1.38, p2)
+      const p2 = clamp01(progressRef.current - 1);
+      const zoom = lerp(1, 1.38, p2);
 
       if (deskWrapRef.current) {
-        deskWrapRef.current.style.transform =
-          `perspective(1000px) rotateX(${rotX}deg) rotateZ(${rotZ}deg) scale(${sc1 * zoom})`
+        deskWrapRef.current.style.transform = `perspective(1000px) rotateX(${rotX}deg) rotateZ(${rotZ}deg) scale(${sc1 * zoom})`;
       }
       if (wallNameRef.current) {
-        wallNameRef.current.style.transform = `translateX(-50%) translateY(${lerp(0, -80, p1)}px)`
-        wallNameRef.current.style.opacity   = String(lerp(1, 0.35, p1))
+        wallNameRef.current.style.transform = `translateX(-50%) translateY(${lerp(0, -80, p1)}px)`;
+        wallNameRef.current.style.opacity = String(lerp(1, 0.35, p1));
       }
       if (deskLegsRef.current) {
-        const legP = clamp01((p1 - 0.3) / 0.45)
-        deskLegsRef.current.style.opacity   = String(1 - legP)
-        deskLegsRef.current.style.transform = `translateY(${lerp(0, 28, legP)}px)`
+        const legP = clamp01((p1 - 0.3) / 0.45);
+        deskLegsRef.current.style.opacity = String(1 - legP);
+        deskLegsRef.current.style.transform = `translateY(${lerp(0, 28, legP)}px)`;
       }
     }
 
     // Set initial tilted state — matches the CSS default transform
-    applyAnim(0)
+    applyAnim(0);
 
     // Use a generous tolerance (10px) so sub-pixel rounding and fractional
     // viewport heights on different devices don't prevent the lock from firing.
     function deskInView() {
-      const r = sectionRef.current?.getBoundingClientRect()
-      if (!r) return false
-      return r.top <= 10 && r.bottom >= window.innerHeight - 10
+      const r = sectionRef.current?.getBoundingClientRect();
+      if (!r) return false;
+      return r.top <= 10 && r.bottom >= window.innerHeight - 10;
     }
 
     function onWheel(e) {
-      if (!deskInView()) return
-      const goingDown = e.deltaY > 0
-      const goingUp   = e.deltaY < 0
+      if (!deskInView()) return;
+      const goingDown = e.deltaY > 0;
+      const goingUp = e.deltaY < 0;
       if (goingDown && progressRef.current < TOTAL_PHASES) {
-        e.preventDefault()
-        applyAnim(progressRef.current + Math.abs(e.deltaY) / 500)
+        e.preventDefault();
+        applyAnim(progressRef.current + Math.abs(e.deltaY) / 500);
       } else if (goingUp && progressRef.current > 0) {
-        e.preventDefault()
-        applyAnim(progressRef.current - Math.abs(e.deltaY) / 500)
+        e.preventDefault();
+        applyAnim(progressRef.current - Math.abs(e.deltaY) / 500);
       }
     }
 
-    let touchStartY = 0
-    function onTouchStart(e) { touchStartY = e.touches[0].clientY }
+    let touchStartY = 0;
+    function onTouchStart(e) {
+      touchStartY = e.touches[0].clientY;
+    }
     function onTouchMove(e) {
-      if (!deskInView()) return
-      const delta     = touchStartY - e.touches[0].clientY
-      touchStartY     = e.touches[0].clientY
-      const goingDown = delta > 0
-      const goingUp   = delta < 0
+      if (!deskInView()) return;
+      const delta = touchStartY - e.touches[0].clientY;
+      touchStartY = e.touches[0].clientY;
+      const goingDown = delta > 0;
+      const goingUp = delta < 0;
       if (goingDown && progressRef.current < TOTAL_PHASES) {
-        e.preventDefault()
-        applyAnim(progressRef.current + Math.abs(delta) / 300)
+        e.preventDefault();
+        applyAnim(progressRef.current + Math.abs(delta) / 300);
       } else if (goingUp && progressRef.current > 0) {
-        e.preventDefault()
-        applyAnim(progressRef.current - Math.abs(delta) / 300)
+        e.preventDefault();
+        applyAnim(progressRef.current - Math.abs(delta) / 300);
       }
     }
 
-    window.addEventListener('wheel',      onWheel,      { passive: false })
-    window.addEventListener('touchstart', onTouchStart, { passive: true  })
-    window.addEventListener('touchmove',  onTouchMove,  { passive: false })
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
 
     return () => {
-      window.removeEventListener('wheel',      onWheel)
-      window.removeEventListener('touchstart', onTouchStart)
-      window.removeEventListener('touchmove',  onTouchMove)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Navigation handler — show modal if no name
   function handleClick(action) {
     if (!user?.name) {
-      setPendingAction(action)
-      setShowModal(true)
-      return
+      setPendingAction(action);
+      setShowModal(true);
+      return;
     }
-    dispatch(action)
+    dispatch(action);
   }
 
   function dispatch(action) {
-    if (action === 'session') navigate('/session')
-    if (action === 'journal') navigate('/journal')
+    if (action === "session") navigate("/session");
+    if (action === "journal") {
+      setIsOpeningJournal(true);
+      setTimeout(() => {
+        navigate("/journal");
+      }, 2500);
+    }
   }
 
   function handleModalSave() {
-    const trimmed = modalName.trim()
-    if (!trimmed) return
+    const trimmed = modalName.trim();
+    if (!trimmed) return;
     // AppContext user.name is static in this project; just proceed
-    setShowModal(false)
-    setModalName('')
+    setShowModal(false);
+    setModalName("");
     if (pendingAction) {
-      const a = pendingAction
-      setPendingAction(null)
-      dispatch(a)
+      const a = pendingAction;
+      setPendingAction(null);
+      dispatch(a);
     }
   }
 
   function handleModalSkip() {
-    setShowModal(false)
-    setModalName('')
-    setPendingAction(null)
+    setShowModal(false);
+    setModalName("");
+    setPendingAction(null);
   }
 
-  const displayName = user?.name || null
+  const displayName = user?.name || null;
 
   return (
     <>
@@ -523,22 +608,29 @@ export default function DeskSection() {
           <div className="scene-lampglow" />
 
           <div className="wall-name" ref={wallNameRef}>
-            {displayName
-              ? <>{displayName}<span>'s space</span></>
-              : <>your<span> space</span></>
-            }
+            {displayName ? (
+              <>
+                {displayName}
+                <span>'s space</span>
+              </>
+            ) : (
+              <>
+                your<span> space</span>
+              </>
+            )}
           </div>
 
           <div className="desk-scene">
             <div className="desk-wrap" ref={deskWrapRef}>
-
               <div className="desk-surface">
                 <div className="desk-grain" />
                 <div className="desk-mat" />
 
                 {/* Lamp */}
                 <div className="lamp">
-                  <div className="lamp-shade"><div className="lamp-bulb" /></div>
+                  <div className="lamp-shade">
+                    <div className="lamp-bulb" />
+                  </div>
                   <div className="lamp-glow" />
                   <div className="lamp-neck" />
                   <div className="lamp-arm" />
@@ -547,11 +639,20 @@ export default function DeskSection() {
 
                 {/* Pencils & Pens */}
                 <div className="pencils" aria-hidden="true">
-                  <div className="pitem pcl pcl-yellow" style={{ height: 72, transform: 'rotate(-2deg)' }} />
-                  <div className="pitem pen pen-navy"   style={{ height: 80, transform: 'rotate(1deg)' }}>
+                  <div
+                    className="pitem pcl pcl-yellow"
+                    style={{ height: 72, transform: "rotate(-2deg)" }}
+                  />
+                  <div
+                    className="pitem pen pen-navy"
+                    style={{ height: 80, transform: "rotate(1deg)" }}
+                  >
                     <div className="pen-clip" />
                   </div>
-                  <div className="pitem pcl pcl-green"  style={{ height: 58, transform: 'rotate(-1deg)' }} />
+                  <div
+                    className="pitem pcl pcl-green"
+                    style={{ height: 58, transform: "rotate(-1deg)" }}
+                  />
                 </div>
 
                 {/* Scattered papers */}
@@ -565,8 +666,13 @@ export default function DeskSection() {
                   role="button"
                   tabIndex={0}
                   aria-label="Open drawing session"
-                  onClick={() => handleClick('session')}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick('session') } }}
+                  onClick={() => handleClick("session")}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleClick("session");
+                    }
+                  }}
                 >
                   <div className="big-paper-shine" />
                   <div className="big-paper-body">
@@ -583,8 +689,13 @@ export default function DeskSection() {
                   role="button"
                   tabIndex={0}
                   aria-label="Open journal"
-                  onClick={() => handleClick('journal')}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick('journal') } }}
+                  onClick={() => handleClick("journal")}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleClick("journal");
+                    }
+                  }}
                 >
                   <div className="journal-cover">
                     <div className="journal-spine" />
@@ -599,27 +710,54 @@ export default function DeskSection() {
 
                 {/* Palette cards */}
                 <div className="palette-cards">
-                  <div className="pal-card" style={{ '--r': '-5deg' }}>
+                  <div className="pal-card" style={{ "--r": "-5deg" }}>
                     <div className="pal-swatches">
-                      <div className="pal-swatch" style={{ background: '#2C3E50' }} />
-                      <div className="pal-swatch" style={{ background: '#34495E' }} />
-                      <div className="pal-swatch" style={{ background: '#1A252F' }} />
+                      <div
+                        className="pal-swatch"
+                        style={{ background: "#2C3E50" }}
+                      />
+                      <div
+                        className="pal-swatch"
+                        style={{ background: "#34495E" }}
+                      />
+                      <div
+                        className="pal-swatch"
+                        style={{ background: "#1A252F" }}
+                      />
                     </div>
                     <div className="pal-date">mar 3</div>
                   </div>
-                  <div className="pal-card" style={{ '--r': '2deg' }}>
+                  <div className="pal-card" style={{ "--r": "2deg" }}>
                     <div className="pal-swatches">
-                      <div className="pal-swatch" style={{ background: '#5D6D7E' }} />
-                      <div className="pal-swatch" style={{ background: '#E59866' }} />
-                      <div className="pal-swatch" style={{ background: '#F0B27A' }} />
+                      <div
+                        className="pal-swatch"
+                        style={{ background: "#5D6D7E" }}
+                      />
+                      <div
+                        className="pal-swatch"
+                        style={{ background: "#E59866" }}
+                      />
+                      <div
+                        className="pal-swatch"
+                        style={{ background: "#F0B27A" }}
+                      />
                     </div>
                     <div className="pal-date">mar 9</div>
                   </div>
-                  <div className="pal-card" style={{ '--r': '-2.5deg' }}>
+                  <div className="pal-card" style={{ "--r": "-2.5deg" }}>
                     <div className="pal-swatches">
-                      <div className="pal-swatch" style={{ background: '#F4D03F' }} />
-                      <div className="pal-swatch" style={{ background: '#58D68D' }} />
-                      <div className="pal-swatch" style={{ background: '#7FB3D3' }} />
+                      <div
+                        className="pal-swatch"
+                        style={{ background: "#F4D03F" }}
+                      />
+                      <div
+                        className="pal-swatch"
+                        style={{ background: "#58D68D" }}
+                      />
+                      <div
+                        className="pal-swatch"
+                        style={{ background: "#7FB3D3" }}
+                      />
                     </div>
                     <div className="pal-date">mar 14</div>
                   </div>
@@ -627,26 +765,43 @@ export default function DeskSection() {
 
                 {/* Stat papers */}
                 <div className="stat-paper sp-back">
-                  <div className="gc-tl" /><div className="gc-br" />
+                  <div className="gc-tl" />
+                  <div className="gc-br" />
                   <div className="stat-lbl">sessions</div>
                   <div className="stat-val">5</div>
                   <div className="stat-unit">this month</div>
                 </div>
                 <div className="stat-paper sp-front">
-                  <div className="gc-tl" /><div className="gc-br" />
+                  <div className="gc-tl" />
+                  <div className="gc-br" />
                   <div className="stat-lbl">avg lift</div>
                   <div className="stat-val">+1.8</div>
                   <div className="stat-unit">mood · per session</div>
                   <div className="stat-bars">
-                    <div className="stat-bar" style={{ height: '36%', background: '#B09070' }} />
-                    <div className="stat-bar" style={{ height: '50%', background: '#B89868' }} />
-                    <div className="stat-bar" style={{ height: '46%', background: '#C09860' }} />
-                    <div className="stat-bar" style={{ height: '68%', background: '#C4956A' }} />
-                    <div className="stat-bar" style={{ height: '84%', background: '#C8A84B' }} />
+                    <div
+                      className="stat-bar"
+                      style={{ height: "36%", background: "#B09070" }}
+                    />
+                    <div
+                      className="stat-bar"
+                      style={{ height: "50%", background: "#B89868" }}
+                    />
+                    <div
+                      className="stat-bar"
+                      style={{ height: "46%", background: "#C09860" }}
+                    />
+                    <div
+                      className="stat-bar"
+                      style={{ height: "68%", background: "#C4956A" }}
+                    />
+                    <div
+                      className="stat-bar"
+                      style={{ height: "84%", background: "#C8A84B" }}
+                    />
                   </div>
                 </div>
-
-              </div>{/* /desk-surface */}
+              </div>
+              {/* /desk-surface */}
 
               <div className="desk-front" />
 
@@ -657,10 +812,12 @@ export default function DeskSection() {
                 <div className="leg lg4" />
                 <div className="desk-bar" />
               </div>
-
-            </div>{/* /desk-wrap */}
-          </div>{/* /desk-scene */}
-        </div>{/* /scene-sticky */}
+            </div>
+            {/* /desk-wrap */}
+          </div>
+          {/* /desk-scene */}
+        </div>
+        {/* /scene-sticky */}
       </section>
 
       {/* Name modal */}
@@ -672,12 +829,19 @@ export default function DeskSection() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22 }}
-            onClick={e => { if (e.target === e.currentTarget) handleModalSkip() }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) handleModalSkip();
+            }}
             style={{
-              position: 'fixed', inset: 0, zIndex: 300,
-              background: 'rgba(20,14,6,.72)', backdropFilter: 'blur(8px)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: '24px',
+              position: "fixed",
+              inset: 0,
+              zIndex: 300,
+              background: "rgba(20,14,6,.72)",
+              backdropFilter: "blur(8px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "24px",
             }}
           >
             <motion.div
@@ -689,63 +853,131 @@ export default function DeskSection() {
               aria-modal="true"
               aria-labelledby="modal-title"
               style={{
-                background: 'linear-gradient(155deg,#1E1812,#140E08)',
-                border: '.5px solid rgba(196,149,106,.22)',
-                borderRadius: '3px',
-                padding: '2.6rem 2.2rem 2.2rem',
-                maxWidth: '340px', width: '100%',
-                textAlign: 'center',
-                position: 'relative',
-                boxShadow: '0 40px 100px rgba(0,0,0,.65),inset 0 1px 0 rgba(200,168,75,.06)',
+                background: "linear-gradient(155deg,#1E1812,#140E08)",
+                border: ".5px solid rgba(196,149,106,.22)",
+                borderRadius: "3px",
+                padding: "2.6rem 2.2rem 2.2rem",
+                maxWidth: "340px",
+                width: "100%",
+                textAlign: "center",
+                position: "relative",
+                boxShadow:
+                  "0 40px 100px rgba(0,0,0,.65),inset 0 1px 0 rgba(200,168,75,.06)",
               }}
             >
               {/* Corner marks via pseudo — replicated as divs */}
-              <div style={{ position:'absolute', top:10, left:10, width:18, height:18, borderTop:'.75px solid rgba(196,149,106,.38)', borderLeft:'.75px solid rgba(196,149,106,.38)' }} />
-              <div style={{ position:'absolute', bottom:10, right:10, width:18, height:18, borderBottom:'.75px solid rgba(196,149,106,.38)', borderRight:'.75px solid rgba(196,149,106,.38)' }} />
+              <div
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  left: 10,
+                  width: 18,
+                  height: 18,
+                  borderTop: ".75px solid rgba(196,149,106,.38)",
+                  borderLeft: ".75px solid rgba(196,149,106,.38)",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 10,
+                  right: 10,
+                  width: 18,
+                  height: 18,
+                  borderBottom: ".75px solid rgba(196,149,106,.38)",
+                  borderRight: ".75px solid rgba(196,149,106,.38)",
+                }}
+              />
 
-              <div style={{ fontSize:'8.5px', letterSpacing:'4px', textTransform:'uppercase', color:'rgba(196,149,106,.5)', marginBottom:'20px' }}>
+              <div
+                style={{
+                  fontSize: "8.5px",
+                  letterSpacing: "4px",
+                  textTransform: "uppercase",
+                  color: "rgba(196,149,106,.5)",
+                  marginBottom: "20px",
+                }}
+              >
                 welcome to arverié
               </div>
-              <div id="modal-title" style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:'30px', fontWeight:300, color:'#F5EFE0', marginBottom:'8px' }}>
-                what should we<br />call you?
+              <div
+                id="modal-title"
+                style={{
+                  fontFamily: "'Cormorant Garamond',serif",
+                  fontSize: "30px",
+                  fontWeight: 300,
+                  color: "#F5EFE0",
+                  marginBottom: "8px",
+                }}
+              >
+                what should we
+                <br />
+                call you?
               </div>
-              <div style={{ width:'32px', height:'.5px', background:'linear-gradient(to right,transparent,rgba(196,149,106,.35),transparent)', margin:'0 auto 14px' }} />
-              <p style={{ fontFamily:"'Cormorant Garamond',serif", fontStyle:'italic', fontSize:'13px', color:'rgba(200,182,155,.42)', lineHeight:1.65, marginBottom:'30px' }}>
-                this is your space.<br />we'll remember you here.
+              <div
+                style={{
+                  width: "32px",
+                  height: ".5px",
+                  background:
+                    "linear-gradient(to right,transparent,rgba(196,149,106,.35),transparent)",
+                  margin: "0 auto 14px",
+                }}
+              />
+              <p
+                style={{
+                  fontFamily: "'Cormorant Garamond',serif",
+                  fontStyle: "italic",
+                  fontSize: "13px",
+                  color: "rgba(200,182,155,.42)",
+                  lineHeight: 1.65,
+                  marginBottom: "30px",
+                }}
+              >
+                this is your space.
+                <br />
+                we'll remember you here.
               </p>
               <input
                 type="text"
                 value={modalName}
-                onChange={e => setModalName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleModalSave() }}
+                onChange={(e) => setModalName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleModalSave();
+                }}
                 placeholder="your name"
                 autoComplete="off"
                 maxLength={30}
                 aria-label="Your name"
                 autoFocus
                 style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,.04)',
-                  border: '.5px solid rgba(196,149,106,.22)',
-                  borderRadius: '2px',
-                  padding: '13px 16px',
-                  color: '#F5EFE0',
+                  width: "100%",
+                  background: "rgba(255,255,255,.04)",
+                  border: ".5px solid rgba(196,149,106,.22)",
+                  borderRadius: "2px",
+                  padding: "13px 16px",
+                  color: "#F5EFE0",
                   fontFamily: "'Cormorant Garamond',serif",
-                  fontSize: '20px', fontWeight: 300,
-                  outline: 'none', marginBottom: '14px',
-                  textAlign: 'center', letterSpacing: '2px',
+                  fontSize: "20px",
+                  fontWeight: 300,
+                  outline: "none",
+                  marginBottom: "14px",
+                  textAlign: "center",
+                  letterSpacing: "2px",
                 }}
               />
               <button
                 onClick={handleModalSave}
                 style={{
-                  width: '100%',
-                  background: 'rgba(196,149,106,.1)',
-                  color: '#F5EFE0',
-                  border: '.5px solid rgba(196,149,106,.38)',
-                  padding: '13px', borderRadius: '2px',
-                  fontSize: '10.5px', letterSpacing: '2.5px', textTransform: 'uppercase',
-                  cursor: 'pointer',
+                  width: "100%",
+                  background: "rgba(196,149,106,.1)",
+                  color: "#F5EFE0",
+                  border: ".5px solid rgba(196,149,106,.38)",
+                  padding: "13px",
+                  borderRadius: "2px",
+                  fontSize: "10.5px",
+                  letterSpacing: "2.5px",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
                 }}
               >
                 Enter My Space →
@@ -753,8 +985,12 @@ export default function DeskSection() {
               <div
                 onClick={handleModalSkip}
                 style={{
-                  fontSize: '9px', color: 'rgba(200,182,155,.28)', marginTop: '16px',
-                  cursor: 'pointer', letterSpacing: '2px', textTransform: 'uppercase',
+                  fontSize: "9px",
+                  color: "rgba(200,182,155,.28)",
+                  marginTop: "16px",
+                  cursor: "pointer",
+                  letterSpacing: "2px",
+                  textTransform: "uppercase",
                 }}
               >
                 maybe later
@@ -763,6 +999,51 @@ export default function DeskSection() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {isOpeningJournal && (
+          <motion.div
+            className="journal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="book-anim-wrapper">
+              {/* Back cover (shadow layer) */}
+              <div className="book-part book-back"></div>
+
+              {/* Base stack of pages */}
+              <div
+                className="book-part book-page bp-base"
+                style={{ right: "-6px", top: "4px", bottom: "4px" }}
+              ></div>
+
+              {/* Flipping pages */}
+              <div
+                className="book-part book-page bp3"
+                style={{ right: "-5px", top: "5px", bottom: "5px" }}
+              ></div>
+              <div
+                className="book-part book-page bp2"
+                style={{ right: "-3px", top: "6px", bottom: "6px" }}
+              ></div>
+              <div
+                className="book-part book-page bp1"
+                style={{ right: "-1px", top: "7px", bottom: "7px" }}
+              ></div>
+
+              {/* The front cover flipping open */}
+              <div className="book-part book-cover">
+                <div className="book-orn">✦</div>
+                <div className="book-name">Arverié</div>
+                <div className="book-rule" />
+                <div className="book-sub">journal</div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
-  )
+  );
 }

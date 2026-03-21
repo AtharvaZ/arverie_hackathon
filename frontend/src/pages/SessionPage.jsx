@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import TopBar from '../components/TopBar'
@@ -13,223 +13,31 @@ const PALETTE = [
   '#8a7a6a', '#d4af37', '#c4854a', '#d4956a',
 ]
 
-const cardVariants = {
-  enter: { y: 24, opacity: 0 },
-  center: { y: 0, opacity: 1 },
-  exit: { y: -24, opacity: 0 },
-}
-
-/* ─── Card 1: Arrival ─── */
-function ArrivalCard({ onNext }) {
-  return (
-    <div className="card" style={{ padding: '52px 44px', textAlign: 'center', maxWidth: '440px', width: '100%' }}>
-      <OrnamentalDivider />
-      <p
-        style={{
-          fontFamily: 'IM Fell English, serif',
-          fontStyle: 'italic',
-          fontSize: '22px',
-          lineHeight: 1.55,
-          color: 'var(--text)',
-          margin: '24px 0',
-        }}
-      >
-        How are you arriving today?
-      </p>
-      <OrnamentalDivider />
-      <button className="btn" style={{ marginTop: '28px', padding: '10px 36px' }} onClick={onNext}>
-        I'm here
-      </button>
-    </div>
-  )
-}
-
-/* ─── Card 2: Mood word ─── */
-function MoodCard({ onNext }) {
-  const [selected, setSelected] = useState('')
-  const [custom, setCustom] = useState('')
-  const mood = selected || custom.trim()
-
-  return (
-    <div className="card" style={{ padding: '40px 40px', maxWidth: '440px', width: '100%' }}>
-      <p
-        style={{
-          fontFamily: 'Cinzel, serif',
-          fontSize: '12px',
-          letterSpacing: '0.15em',
-          color: 'var(--text-muted)',
-          textAlign: 'center',
-          marginBottom: '24px',
-        }}
-      >
-        GIVE THIS MOMENT A WORD
-      </p>
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '8px',
-          justifyContent: 'center',
-          marginBottom: '20px',
-        }}
-      >
-        {MOODS.map((m) => (
-          <button
-            key={m}
-            onClick={() => { setSelected(m); setCustom('') }}
-            style={{
-              fontFamily: 'Cinzel, serif',
-              fontSize: '10px',
-              letterSpacing: '0.06em',
-              padding: '6px 16px',
-              borderRadius: '16px',
-              border: `1px solid ${selected === m ? 'var(--gold)' : 'var(--border-gold)'}`,
-              background: selected === m ? 'var(--gold-wash)' : 'transparent',
-              color: 'var(--text)',
-              cursor: 'pointer',
-              transition: 'all var(--transition)',
-            }}
-          >
-            {m}
-          </button>
-        ))}
-      </div>
-      <input
-        value={custom}
-        onChange={(e) => { setCustom(e.target.value); setSelected('') }}
-        placeholder="or write your own..."
-        style={{
-          width: '100%',
-          fontFamily: 'IM Fell English, serif',
-          fontStyle: 'italic',
-          fontSize: '16px',
-          color: 'var(--text)',
-          background: 'transparent',
-          border: 'none',
-          borderBottom: '1px solid var(--border-gold)',
-          padding: '8px 0',
-          outline: 'none',
-          marginBottom: '24px',
-        }}
-      />
-      <div style={{ textAlign: 'center' }}>
-        <button
-          className="btn"
-          disabled={!mood}
-          onClick={() => mood && onNext(mood)}
-          style={{ padding: '10px 36px' }}
-        >
-          Continue
-        </button>
-      </div>
-    </div>
-  )
-}
-
-/* ─── Card 3: Color ─── */
-function ColorCard({ onNext }) {
-  const [selected, setSelected] = useState(null)
-  const [custom, setCustom] = useState(null)
-  const color = custom || selected
-
-  return (
-    <div className="card" style={{ padding: '40px 40px', maxWidth: '440px', width: '100%' }}>
-      <p
-        style={{
-          fontFamily: 'Cinzel, serif',
-          fontSize: '12px',
-          letterSpacing: '0.15em',
-          color: 'var(--text-muted)',
-          textAlign: 'center',
-          marginBottom: '24px',
-        }}
-      >
-        PICK A COLOR THAT FEELS LIKE THIS MOMENT
-      </p>
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '10px',
-          justifyContent: 'center',
-          marginBottom: '16px',
-        }}
-      >
-        {PALETTE.map((c) => (
-          <motion.div
-            key={c}
-            onClick={() => { setSelected(c); setCustom(null) }}
-            animate={
-              selected === c && !custom
-                ? { scale: 1.1, boxShadow: '0 0 0 3px rgba(200,160,40,0.7)' }
-                : { scale: 1, boxShadow: '0 1px 4px rgba(0,0,0,0.22)' }
-            }
-            transition={{ duration: 0.2 }}
-            style={{
-              width: '30px', height: '30px',
-              borderRadius: '50%',
-              background: c,
-              cursor: 'pointer',
-            }}
-          />
-        ))}
-      </div>
-      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-        <label
-          style={{
-            fontFamily: 'Cinzel, serif',
-            fontSize: '9px',
-            color: 'var(--gold)',
-            letterSpacing: '0.1em',
-            cursor: 'pointer',
-            opacity: 0.85,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          or choose your own →
-          <input
-            type="color"
-            onChange={(e) => { setCustom(e.target.value); setSelected(null) }}
-            style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
-          />
-        </label>
-        {custom && (
-          <div
-            style={{
-              width: '30px', height: '30px',
-              borderRadius: '50%',
-              background: custom,
-              margin: '8px auto 0',
-              boxShadow: '0 0 0 3px rgba(200,160,40,0.7)',
-            }}
-          />
-        )}
-      </div>
-      <div style={{ textAlign: 'center' }}>
-        <button
-          className="btn"
-          disabled={!color}
-          onClick={() => color && onNext(color)}
-          style={{ padding: '10px 36px' }}
-        >
-          Continue
-        </button>
-      </div>
-    </div>
-  )
-}
-
-/* ─── Card 4: Mode selection ─── */
-function ModeCard({ mood, moodColor }) {
+export default function SessionPage() {
   const navigate = useNavigate()
   const { setSession } = useApp()
+
+  // Combined State
+  const [moodSelected, setMoodSelected] = useState('')
+  const [moodCustom, setMoodCustom] = useState('')
+  const mood = moodSelected || moodCustom.trim()
+
+  const [colorSelected, setColorSelected] = useState(null)
+  const [colorCustom, setColorCustom] = useState(null)
+  const moodColor = colorCustom || colorSelected
+
   const [mode, setMode] = useState(null)
   const [bursting, setBursting] = useState(false)
 
+  const isReady = !!(mood && moodColor && mode)
+
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   function handleBegin() {
-    if (!mode) return
+    if (!isReady) return
     setSession((s) => ({
       ...s,
       mood,
@@ -242,7 +50,12 @@ function ModeCard({ mood, moodColor }) {
   }
 
   return (
-    <>
+    <div
+      className="min-h-screen flex flex-col items-center w-full"
+      style={{ background: 'var(--bg)', paddingTop: '52px' }}
+    >
+      <TopBar />
+
       {/* Radial burst transition */}
       <AnimatePresence>
         {bursting && (
@@ -252,8 +65,10 @@ function ModeCard({ mood, moodColor }) {
             transition={{ duration: 0.75, ease: 'easeInOut' }}
             style={{
               position: 'fixed',
-              inset: 0, margin: 'auto',
-              width: '60px', height: '60px',
+              inset: 0,
+              margin: 'auto',
+              width: '60px',
+              height: '60px',
               borderRadius: '50%',
               background: moodColor || 'var(--gold)',
               zIndex: 200,
@@ -263,108 +78,269 @@ function ModeCard({ mood, moodColor }) {
         )}
       </AnimatePresence>
 
-      <div className="card" style={{ padding: '40px 40px', maxWidth: '440px', width: '100%' }}>
-        <p
-          style={{
-            fontFamily: 'Cinzel, serif',
-            fontSize: '12px',
-            letterSpacing: '0.15em',
-            color: 'var(--text-muted)',
-            textAlign: 'center',
-            marginBottom: '24px',
-          }}
-        >
-          HOW WOULD YOU LIKE TO PAINT TODAY?
-        </p>
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '28px' }}>
-          {[
-            { key: 'guided', label: 'Guided', sub: "I'll offer gentle prompts" },
-            { key: 'free', label: 'Free', sub: 'just me and the canvas' },
-          ].map((opt) => (
-            <div
-              key={opt.key}
-              onClick={() => setMode(opt.key)}
+      <div className="flex-1 w-full max-w-4xl px-6 py-12 flex flex-col items-center">
+        
+        {/* Header */}
+        <div className="text-center mb-12 w-full max-w-md">
+          <OrnamentalDivider />
+          <h1
+            style={{
+              fontFamily: 'IM Fell English, serif',
+              fontStyle: 'italic',
+              fontSize: '28px',
+              color: 'var(--text)',
+              margin: '24px 0',
+            }}
+          >
+            How are you arriving today?
+          </h1>
+          <OrnamentalDivider />
+        </div>
+
+        {/* Bento Collage Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-12">
+          
+          {/* Box 1: Mood */}
+          <div className="card p-8 flex flex-col justify-between" style={{ minHeight: '320px' }}>
+            <h2
+              className="text-center mb-8 mt-2"
               style={{
-                width: '190px',
-                padding: '22px 18px',
-                borderRadius: 'var(--radius-md)',
-                border: `${mode === opt.key ? 2 : 1}px solid ${mode === opt.key ? 'var(--gold)' : 'var(--border)'}`,
-                background: mode === opt.key ? 'var(--gold-wash)' : 'var(--bg-card)',
-                cursor: 'pointer',
-                textAlign: 'center',
-                transition: 'all var(--transition)',
+                fontFamily: 'Cinzel, serif',
+                fontSize: '12px',
+                letterSpacing: '0.15em',
+                color: 'var(--text-muted)',
               }}
             >
-              <p style={{ fontFamily: 'Cinzel, serif', fontSize: '13px', color: 'var(--text)', marginBottom: '8px' }}>
-                {opt.label}
-              </p>
-              <p style={{ fontFamily: 'IM Fell English, serif', fontStyle: 'italic', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                {opt.sub}
-              </p>
+              GIVE THIS MOMENT A WORD
+            </h2>
+            <div className="flex flex-wrap gap-2 justify-center mb-8">
+              {MOODS.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    setMoodSelected(m)
+                    setMoodCustom('')
+                  }}
+                  style={{
+                    fontFamily: 'Cinzel, serif',
+                    fontSize: '11px',
+                    letterSpacing: '0.06em',
+                    padding: '8px 18px',
+                    borderRadius: '20px',
+                    border: `1px solid ${
+                      moodSelected === m ? 'var(--gold)' : 'var(--border-gold)'
+                    }`,
+                    background:
+                      moodSelected === m ? 'var(--gold-wash)' : 'transparent',
+                    color: 'var(--text)',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition)',
+                  }}
+                >
+                  {m}
+                </button>
+              ))}
             </div>
-          ))}
+            <input
+              value={moodCustom}
+              onChange={(e) => {
+                setMoodCustom(e.target.value)
+                setMoodSelected('')
+              }}
+              placeholder="or write your own..."
+              className="mt-auto mx-auto max-w-[280px]"
+              style={{
+                width: '100%',
+                fontFamily: 'IM Fell English, serif',
+                fontStyle: 'italic',
+                fontSize: '18px',
+                color: 'var(--text)',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '1px solid var(--border-gold)',
+                padding: '8px 4px',
+                outline: 'none',
+                textAlign: 'center',
+              }}
+            />
+          </div>
+
+          {/* Box 2: Color */}
+          <div className="card p-8 flex flex-col items-center justify-between" style={{ minHeight: '320px' }}>
+            <h2
+              className="text-center mb-8 mt-2"
+              style={{
+                fontFamily: 'Cinzel, serif',
+                fontSize: '12px',
+                letterSpacing: '0.15em',
+                color: 'var(--text-muted)',
+              }}
+            >
+              A COLOR FOR THIS MOMENT
+            </h2>
+            <div className="flex flex-wrap gap-3 justify-center mb-6 w-full max-w-[240px]">
+              {PALETTE.map((c) => (
+                <motion.div
+                  key={c}
+                  onClick={() => {
+                    setColorSelected(c)
+                    setColorCustom(null)
+                  }}
+                  animate={
+                    colorSelected === c && !colorCustom
+                      ? { scale: 1.15, boxShadow: '0 0 0 3px rgba(200,160,40,0.7)' }
+                      : { scale: 1, boxShadow: '0 1px 4px rgba(0,0,0,0.22)' }
+                  }
+                  transition={{ duration: 0.2 }}
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: c,
+                    cursor: 'pointer',
+                  }}
+                />
+              ))}
+            </div>
+
+            <div className="flex flex-col items-center h-[50px] mt-auto">
+              <label
+                style={{
+                  fontFamily: 'Cinzel, serif',
+                  fontSize: '10px',
+                  color: 'var(--gold)',
+                  letterSpacing: '0.1em',
+                  cursor: 'pointer',
+                  opacity: 0.85,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  position: 'relative',
+                }}
+              >
+                or choose your own →
+                <input
+                  type="color"
+                  onChange={(e) => {
+                    setColorCustom(e.target.value)
+                    setColorSelected(null)
+                  }}
+                  style={{
+                    position: 'absolute',
+                    opacity: 0,
+                    width: '100%',
+                    height: '100%',
+                    cursor: 'pointer',
+                  }}
+                />
+              </label>
+              {colorCustom && (
+                <div
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    background: colorCustom,
+                    marginTop: '12px',
+                    boxShadow: '0 0 0 3px rgba(200,160,40,0.7)',
+                  }}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Box 3: Mode */}
+          <div className="card p-8 md:col-span-2">
+            <h2
+              className="text-center mb-8"
+              style={{
+                fontFamily: 'Cinzel, serif',
+                fontSize: '12px',
+                letterSpacing: '0.15em',
+                color: 'var(--text-muted)',
+              }}
+            >
+              HOW WOULD YOU LIKE TO PAINT TODAY?
+            </h2>
+            <div className="flex flex-col sm:flex-row gap-6 justify-center max-w-2xl mx-auto">
+              {[
+                { key: 'guided', label: 'Guided', sub: "I'll offer gentle prompts" },
+                { key: 'free', label: 'Free', sub: 'just me and the canvas' },
+              ].map((opt) => (
+                <div
+                  key={opt.key}
+                  onClick={() => setMode(opt.key)}
+                  style={{
+                    flex: 1,
+                    padding: '28px 24px',
+                    borderRadius: 'var(--radius-md)',
+                    border: `${mode === opt.key ? 2 : 1}px solid ${
+                      mode === opt.key ? 'var(--gold)' : 'var(--border)'
+                    }`,
+                    background:
+                      mode === opt.key ? 'var(--gold-wash)' : 'transparent',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all var(--transition)',
+                  }}
+                >
+                  <p
+                    style={{
+                      fontFamily: 'Cinzel, serif',
+                      fontSize: '15px',
+                      color: 'var(--text)',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    {opt.label}
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: 'IM Fell English, serif',
+                      fontStyle: 'italic',
+                      fontSize: '16px',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    {opt.sub}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-        <div style={{ textAlign: 'center' }}>
+
+        {/* Action Button */}
+        <div className="text-center pb-24">
           <button
             className="btn btn-primary"
-            disabled={!mode}
             onClick={handleBegin}
-            style={{ padding: '10px 36px' }}
+            disabled={!isReady}
+            style={{
+              padding: '16px 48px',
+              fontSize: '13px',
+              opacity: isReady ? 1 : 0.4,
+              transform: isReady ? 'scale(1)' : 'scale(0.98)',
+              pointerEvents: isReady ? 'auto' : 'none',
+              transition: 'all 0.4s ease',
+            }}
           >
             Begin painting
           </button>
+          {!isReady && (
+            <p
+              className="mt-6"
+              style={{
+                fontFamily: 'IM Fell English, serif',
+                fontStyle: 'italic',
+                color: 'var(--text-secondary)',
+                fontSize: '16px',
+              }}
+            >
+              Please select a word, a color, and a mode to begin.
+            </p>
+          )}
         </div>
-      </div>
-    </>
-  )
-}
-
-/* ─── SessionPage ─── */
-export default function SessionPage() {
-  const [step, setStep] = useState(0)
-  const [mood, setMood] = useState(null)
-  const [moodColor, setMoodColor] = useState(null)
-
-  const cards = [
-    <ArrivalCard onNext={() => setStep(1)} />,
-    <MoodCard onNext={(m) => { setMood(m); setStep(2) }} />,
-    <ColorCard onNext={(c) => { setMoodColor(c); setStep(3) }} />,
-    <ModeCard mood={mood} moodColor={moodColor} />,
-  ]
-
-  return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'var(--bg)',
-        paddingTop: '52px',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <TopBar />
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '40px 20px',
-        }}
-      >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            variants={cardVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: step === 0 ? 0.45 : 0.35, ease: 'easeInOut' }}
-            style={{ width: '100%', maxWidth: '440px', display: 'flex', justifyContent: 'center' }}
-          >
-            {cards[step]}
-          </motion.div>
-        </AnimatePresence>
       </div>
     </div>
   )
