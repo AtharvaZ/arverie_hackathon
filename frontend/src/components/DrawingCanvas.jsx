@@ -21,6 +21,10 @@ const CURSOR = {
   smudge: "cell",
   blur: "cell",
   eraser: "cell",
+  line: "crosshair",
+  rectangle: "crosshair",
+  circle: "crosshair",
+  triangle: "crosshair",
 };
 
 // Pencil and ink are drawn on a live canvas at globalAlpha=1 (fully opaque).
@@ -28,6 +32,62 @@ const CURSOR = {
 // (painting opaque color over opaque color = no change) → no visible dark circles.
 // On pointerUp the live canvas is composited onto the permanent canvas at user opacity.
 const LIVE_BRUSHES = new Set(["pencil", "ink"]);
+const SHAPE_TOOLS = new Set(["line", "rectangle", "circle", "triangle"]);
+const PREVIEW_TOOLS = new Set([
+  "pencil",
+  "ink",
+  "line",
+  "rectangle",
+  "circle",
+  "triangle",
+]);
+
+function drawShape(ctx, shape, start, end, color, size) {
+  const left = Math.min(start.x, end.x);
+  const top = Math.min(start.y, end.y);
+  const width = Math.abs(end.x - start.x);
+  const height = Math.abs(end.y - start.y);
+  const strokeWidth = Math.max(2, size * 0.35);
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = strokeWidth;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+
+  if (shape === "line") {
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+    return;
+  }
+
+  if (shape === "rectangle") {
+    ctx.strokeRect(left, top, width, height);
+    return;
+  }
+
+  if (shape === "circle") {
+    const centerX = (start.x + end.x) / 2;
+    const centerY = (start.y + end.y) / 2;
+    const radius = Math.max(width, height) / 2;
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    return;
+  }
+
+  if (shape === "triangle") {
+    const apexX = (left + left + width) / 2;
+    const apexY = top;
+    const rightX = left + width;
+    const baseY = top + height;
+    ctx.moveTo(apexX, apexY);
+    ctx.lineTo(rightX, baseY);
+    ctx.lineTo(left, baseY);
+    ctx.closePath();
+    ctx.stroke();
+  }
+}
 
 function sampleStrokePoints(points, maxSamples = 12) {
   if (!Array.isArray(points) || points.length === 0) return [];
@@ -56,6 +116,7 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
   const strokeStart = useRef(null);
   const strokePoints = useRef([]);
   const prevMidPoint = useRef(null);
+  const dragStartPoint = useRef(null);
 
   // Expose imperative API for getDataURL (composited with parchment bg)
   useImperativeHandle(
@@ -117,8 +178,9 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
       lastTime.current = performance.now();
       strokeStart.current = Date.now();
       strokePoints.current = [pos];
+      dragStartPoint.current = pos;
       prevMidPoint.current = null;
-      if (LIVE_BRUSHES.has(brush) && liveCanvasRef.current) {
+      if (PREVIEW_TOOLS.has(brush) && liveCanvasRef.current) {
         const liveCtx = liveCanvasRef.current.getContext("2d");
         liveCtx.clearRect(
           0,
@@ -126,7 +188,9 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
           liveCanvasRef.current.width,
           liveCanvasRef.current.height,
         );
-        liveCanvasRef.current.style.opacity = opacity;
+        liveCanvasRef.current.style.opacity = SHAPE_TOOLS.has(brush)
+          ? Math.max(0.65, opacity)
+          : opacity;
       }
     },
     [getPos, brush, opacity],
@@ -148,6 +212,24 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
       const dt = Math.max(now - lastTime.current, 1);
       const dist = Math.hypot(pos.x - prev.x, pos.y - prev.y);
       const speed = dist / dt; // px/ms
+
+      if (
+        SHAPE_TOOLS.has(brush) &&
+        liveCanvasRef.current &&
+        dragStartPoint.current
+      ) {
+        ctx.clearRect(
+          0,
+          0,
+          liveCanvasRef.current.width,
+          liveCanvasRef.current.height,
+        );
+        drawShape(ctx, brush, dragStartPoint.current, pos, color, size);
+        strokePoints.current = [dragStartPoint.current, pos];
+        lastPoint.current = pos;
+        lastTime.current = now;
+        return;
+      }
 
       const currentMid = { x: (prev.x + pos.x) / 2, y: (prev.y + pos.y) / 2 };
       const fromMid = prevMidPoint.current ?? prev;
@@ -228,7 +310,11 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
     if (!isDrawing.current) return;
     isDrawing.current = false;
 
-    if (LIVE_BRUSHES.has(brush) && liveCanvasRef.current && canvasRef.current) {
+    if (
+      PREVIEW_TOOLS.has(brush) &&
+      liveCanvasRef.current &&
+      canvasRef.current
+    ) {
       // Composite live stroke onto permanent canvas at user opacity
       const mainCtx = canvasRef.current.getContext("2d");
       mainCtx.globalAlpha = opacity;
@@ -286,6 +372,7 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
     }
 
     lastPoint.current = null;
+    dragStartPoint.current = null;
     strokePoints.current = [];
   }, [brush, color, opacity, size, onStroke]);
 

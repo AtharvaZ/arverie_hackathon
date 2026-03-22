@@ -163,7 +163,7 @@ const DESK_CSS = `
   transform:translateX(-50%);
   display:flex;
   gap:var(--window-gap);
-  pointer-events:none; z-index:6;
+  pointer-events:none; z-index:2;
   will-change:transform,opacity;
 }
 .room-window-panel { display:flex; flex-direction:column; }
@@ -774,6 +774,7 @@ const DESK_CSS = `
   box-shadow:0 8px 28px rgba(20,10,2,.38),0 3px 8px rgba(20,10,2,.22),inset 0 0 0 .5px rgba(0,0,0,.05);
   transition:transform .32s cubic-bezier(.2,.85,.3,1),box-shadow .32s;
   display:flex; align-items:center; justify-content:center; overflow:hidden;
+  isolation:isolate;
 }
 .big-paper:hover {
   transform:translateY(-10px) scale(1.02);
@@ -803,6 +804,17 @@ const DESK_CSS = `
   color:rgba(110,75,30,.22); margin-top:12px; transition:color .3s;
 }
 .big-paper:hover .big-paper-cta { color:rgba(160,115,50,.48); }
+
+/* Safari-only safety for legacy/ghost clip artifacts over the main paper */
+.is-safari-browser .back-paper { z-index:3; }
+.is-safari-browser .big-paper { z-index:6; }
+.is-safari-browser .big-paper::before,
+.is-safari-browser .big-paper::after,
+.is-safari-browser .big-paper .big-paper-clip,
+.is-safari-browser .big-paper [class*="clip"] {
+  content:none !important;
+  display:none !important;
+}
 
 /* ── journal ── */
 .journal {
@@ -961,6 +973,31 @@ const DESK_CSS = `
   .room-plant { transform:scale(.88); transform-origin:bottom right; }
   .room-rug-hint { width:92vw; height:14%; bottom:6%; opacity:.72; }
 }
+
+@media (max-width: 767px) {
+  .lamp:hover,
+  .pencils:hover,
+  .big-paper:hover,
+  .journal:hover,
+  .pal-card:hover,
+  .sp-back:hover,
+  .sp-front:hover {
+    transform: none !important;
+    filter: none !important;
+    box-shadow: inherit !important;
+  }
+
+  .pencils:hover .pitem {
+    animation: none !important;
+  }
+
+  .journal:hover .journal-label,
+  .big-paper:hover .big-paper-icon,
+  .big-paper:hover .big-paper-cta {
+    opacity: inherit !important;
+    color: inherit !important;
+  }
+}
 `;
 
 export default function DeskSection({
@@ -1001,6 +1038,9 @@ export default function DeskSection({
   const [showModal, setShowModal] = useState(false);
   const [modalName, setModalName] = useState("");
   const [pendingAction, setPendingAction] = useState(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false,
+  );
 
   // scroll animation refs — no state to avoid re-renders
   const sectionRef = useRef(null);
@@ -1023,6 +1063,13 @@ export default function DeskSection({
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [refreshPastSessions, session?.userId, user?.id]);
+
+  useEffect(() => {
+    const onResize = () => setIsMobileViewport(window.innerWidth < 768);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     if (typeof onDeskInViewChange !== "function") return;
@@ -1105,6 +1152,12 @@ export default function DeskSection({
         windowsRef.current.style.opacity = String(windowOpacity);
         windowsRef.current.style.filter = `blur(${lerp(0, 6, windowFade)}px)`;
       }
+    }
+
+    // On mobile, avoid scroll-lock style interactions and keep a stable desk state.
+    if (isMobileViewport) {
+      applyAnim(1);
+      return;
     }
 
     // Set initial tilted state — matches the CSS default transform
@@ -1199,7 +1252,7 @@ export default function DeskSection({
       );
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isMobileViewport]);
 
   // Navigation handler — show modal if no name
   function handleClick(action) {

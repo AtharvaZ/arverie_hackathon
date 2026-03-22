@@ -27,7 +27,7 @@ const prefersReduced =
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ─── Footer ──────────────────────────────────────────────────────────────────
-function Footer() {
+function Footer({ enableInteractivity }) {
   const footerCards = [
     {
       icon: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z",
@@ -146,12 +146,16 @@ function Footer() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.42, ease: "easeOut", delay: i * 0.08 }}
-            whileHover={{
-              y: -8,
-              borderColor: "rgba(183, 255, 204, 0.56)",
-              boxShadow:
-                "0 14px 46px rgba(0,0,0,0.4), 0 0 22px rgba(134, 244, 164, 0.24)",
-            }}
+            whileHover={
+              enableInteractivity
+                ? {
+                    y: -8,
+                    borderColor: "rgba(183, 255, 204, 0.56)",
+                    boxShadow:
+                      "0 14px 46px rgba(0,0,0,0.4), 0 0 22px rgba(134, 244, 164, 0.24)",
+                  }
+                : undefined
+            }
             style={{
               transform: "none",
               background:
@@ -311,8 +315,18 @@ export default function LandingPage() {
   const qtRotX = useRef(null);
   const qtRotY = useRef(null);
 
-  // ─── Mobile check ───────────────────────────────────────────────
+  // ─── Viewport checks ───────────────────────────────────────────────
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false,
+  );
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+
+  useEffect(() => {
+    const onResize = () => setIsMobileViewport(window.innerWidth < 768);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   // ─── Body class for landing page background ─────────────────────────────
   useEffect(() => {
@@ -488,7 +502,7 @@ export default function LandingPage() {
 
   // ─── Mouse 3D parallax ───────────────────────────────────────────────────
   useEffect(() => {
-    if (isMobile || prefersReduced) return;
+    if (isMobileViewport || prefersReduced) return;
     const timer = setTimeout(() => {
       if (!logoContainerRef.current) return;
       qtRotX.current = gsap.quickTo(logoContainerRef.current, "rotateX", {
@@ -510,11 +524,11 @@ export default function LandingPage() {
       clearTimeout(timer);
       window.removeEventListener("mousemove", onMouseMove);
     };
-  }, [isMobile]);
+  }, [isMobileViewport]);
 
   // ─── Logo hover ──────────────────────────────────────────────────────────
   function handleLogoEnter() {
-    if (prefersReduced) return;
+    if (prefersReduced || isMobileViewport) return;
     gsap.to(glowRef.current, { opacity: 0.52, duration: 0.28 });
     gsap.to(svgContainerRef.current, {
       scale: 1.06,
@@ -523,7 +537,7 @@ export default function LandingPage() {
     });
   }
   function handleLogoLeave() {
-    if (prefersReduced) return;
+    if (prefersReduced || isMobileViewport) return;
     gsap.to(glowRef.current, { opacity: 0.18, duration: 0.5 });
     gsap.to(svgContainerRef.current, {
       scale: 1.0,
@@ -982,15 +996,19 @@ export default function LandingPage() {
             <motion.button
               ref={btnRef}
               onClick={handleBeginSessionClick}
-              whileHover={{
-                backgroundColor: "rgba(70, 161, 95, 0.36)",
-                borderColor: "rgba(181, 255, 201, 0.95)",
-                color: "#F3FFF6",
-                boxShadow:
-                  "0 12px 34px rgba(20, 58, 31, 0.52), 0 0 24px rgba(139, 243, 166, 0.45), inset 0 0 0 1px rgba(219, 255, 229, 0.25)",
-                y: -2,
-              }}
-              whileTap={{ scale: 0.97 }}
+              whileHover={
+                !isMobileViewport
+                  ? {
+                      backgroundColor: "rgba(70, 161, 95, 0.36)",
+                      borderColor: "rgba(181, 255, 201, 0.95)",
+                      color: "#F3FFF6",
+                      boxShadow:
+                        "0 12px 34px rgba(20, 58, 31, 0.52), 0 0 24px rgba(139, 243, 166, 0.45), inset 0 0 0 1px rgba(219, 255, 229, 0.25)",
+                      y: -2,
+                    }
+                  : undefined
+              }
+              whileTap={!isMobileViewport ? { scale: 0.97 } : undefined}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -1065,7 +1083,11 @@ export default function LandingPage() {
                 scroll to enter
               </span>
               <motion.div
-                whileHover={{ borderColor: "rgba(200,160,40,0.75)" }}
+                whileHover={
+                  !isMobileViewport
+                    ? { borderColor: "rgba(200,160,40,0.75)" }
+                    : undefined
+                }
                 style={{
                   position: "relative",
                   width: "38px",
@@ -1106,7 +1128,7 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-        <Footer />
+        <Footer enableInteractivity={!isMobileViewport} />
         <DeskSection
           sectionId="desk-section"
           onDeskInViewChange={setDeskInView}
