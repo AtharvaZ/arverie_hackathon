@@ -37,22 +37,99 @@ const DESK_CSS = `
   position:relative;
   height:100vh; overflow:hidden;
   display:flex; align-items:center; justify-content:center;
-  background:linear-gradient(160deg,#F2E8D5 0%,var(--wall) 50%,#E4D8B8 100%);
+  background:#EEE8D5; /* flat back wall */
 }
 .scene-texture {
-  position:absolute; inset:0; pointer-events:none; opacity:.5;
+  position:absolute; inset:0; pointer-events:none; opacity:.35;
   background:
     repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(140,110,60,.04) 3px,rgba(140,110,60,.04) 4px),
-    repeating-linear-gradient(90deg,transparent,transparent 6px,rgba(140,110,60,.025) 6px,rgba(140,110,60,.025) 12px);
+    repeating-linear-gradient(90deg,transparent,transparent 6px,rgba(140,110,60,.02) 6px,rgba(140,110,60,.02) 12px);
 }
 .scene-vignette {
   position:absolute; inset:0; pointer-events:none;
-  background:radial-gradient(ellipse at 50% 50%,transparent 38%,rgba(100,75,40,.16) 100%);
+  background:radial-gradient(ellipse at 50% 45%,transparent 35%,rgba(90,60,20,.13) 100%);
 }
 .scene-lampglow {
   position:absolute; pointer-events:none; width:50%; height:65%;
   top:8%; left:50%; transform:translateX(-20%);
-  background:radial-gradient(ellipse at 62% 18%,rgba(220,165,55,.1) 0%,rgba(200,140,40,.04) 45%,transparent 72%);
+  background:radial-gradient(ellipse at 62% 18%,rgba(220,165,55,.08) 0%,rgba(200,140,40,.03) 45%,transparent 72%);
+}
+
+/* Crown molding */
+.room-molding {
+  position:absolute; top:0; left:0; right:0; height:20px;
+  background:linear-gradient(to bottom,#D8CC98,#C4B47E,#DACEAA);
+  border-bottom:1px solid rgba(140,110,60,.15);
+  pointer-events:none; z-index:3;
+}
+/* Hardwood floor */
+.room-floor {
+  position:absolute; bottom:0; left:0; right:0; height:22%;
+  background:
+    repeating-linear-gradient(90deg,
+      transparent,transparent 99px,
+      rgba(0,0,0,.04) 99px,rgba(0,0,0,.04) 100px
+    ),
+    linear-gradient(180deg,#C8A85A 0%,#B89040 50%,#A07830 100%);
+  pointer-events:none; z-index:1;
+}
+/* Baseboard */
+.room-baseboard {
+  position:absolute; bottom:22%; left:0; right:0; height:10px;
+  background:linear-gradient(to bottom,#DCC88A,#C4AA6A);
+  box-shadow:0 3px 8px rgba(50,28,5,.18);
+  pointer-events:none; z-index:2;
+}
+
+/* ══ WINDOWS (two panels side by side) ════════════════════ */
+.room-window-wrap {
+  position:absolute; top:5%; left:50%; transform:translateX(-50%);
+  display:flex; gap:22px;
+  pointer-events:none; z-index:2;
+  will-change:transform,opacity;
+}
+.room-window-panel { display:flex; flex-direction:column; }
+/* Outer wall trim around each window */
+.room-window-trim {
+  padding:14px 14px 0 14px;
+  background:linear-gradient(180deg,#D4C890 0%,#C4B878 100%);
+  border-radius:4px 4px 0 0;
+  box-shadow:inset 0 4px 12px rgba(0,0,0,.12), 0 10px 30px rgba(50,28,5,.25);
+}
+/* Glass pane — each panel */
+.room-window-glass {
+  width:330px; height:250px; position:relative;
+  background:linear-gradient(175deg,
+    #B8D0EE 0%,#C8E0F8 20%,
+    #DAEEFF 45%,
+    #D8C8A0 68%,#C4A870 82%,#B09050 100%
+  );
+  border:10px solid #7A5A28; border-radius:2px;
+  box-shadow:inset 0 0 60px rgba(180,215,255,.15);
+}
+/* Vertical glazing bar */
+.room-window-glass::before {
+  content:''; position:absolute; left:50%; top:0; bottom:0; width:8px;
+  background:linear-gradient(to right,#6A4A1E,#8A6430,#6A4A1E);
+  transform:translateX(-50%);
+}
+/* Horizontal glazing bar */
+.room-window-glass::after {
+  content:''; position:absolute; top:42%; left:0; right:0; height:8px;
+  background:linear-gradient(to bottom,#6A4A1E,#8A6430,#6A4A1E);
+}
+/* Window sill */
+.room-window-sill {
+  height:14px; margin:0 -14px;
+  background:linear-gradient(to bottom,#9A7230,#7A5218);
+  border-radius:0 0 4px 4px;
+  box-shadow:0 6px 14px rgba(50,28,5,.28);
+}
+/* Soft light spill below windows */
+.room-window-glow {
+  position:absolute; top:100%; left:50%; transform:translateX(-50%);
+  width:720px; height:80px; pointer-events:none;
+  background:radial-gradient(ellipse at 50% 0%,rgba(220,205,155,.18) 0%,transparent 70%);
 }
 .wall-name {
   position:absolute; top:36px; left:50%;
@@ -66,14 +143,16 @@ const DESK_CSS = `
 .wall-name span { color:rgba(90,60,20,.54); }
 
 /* ══ DESK ASSEMBLY ══════════════════════════ */
-.desk-scene { position:relative; }
 .desk-wrap {
-  position:relative; width:720px; max-width:92vw; height:500px;
-  transform:perspective(1000px) rotateX(18deg) rotateZ(-1deg) scale(1.05);
+  position:relative; width:960px; max-width:92vw; height:460px;
+  transform:perspective(1000px) rotateX(18deg) rotateZ(-1deg) scale(0.78);
   transform-style:preserve-3d;
   filter:drop-shadow(0 60px 36px rgba(40,20,5,.4)) drop-shadow(0 24px 16px rgba(40,20,5,.28));
   will-change:transform;
 }
+
+/* ══ DESK SCENE ══════════════════════════ */
+.desk-scene { position:absolute; bottom:2%; left:50%; transform:translateX(-50%); z-index:5; }
 
 /* ── desk legs ── */
 .desk-legs {
@@ -228,15 +307,22 @@ const DESK_CSS = `
 .pen-navy    { background:linear-gradient(180deg,#2A3650 0%,#1C2640 50%,#121A30 100%); --nib-color:#6A6860; }
 .pen-charcoal{ background:linear-gradient(180deg,#484440 0%,#30302C 50%,#202020 100%); --nib-color:#787470; }
 
-/* ── scattered papers ── */
-.scatter { position:absolute; background:var(--paper); border-radius:1px; box-shadow:0 2px 8px rgba(30,18,6,.22),0 1px 2px rgba(30,18,6,.14); }
-.sc1 { top:6%;  left:26%; width:12%; height:9%; transform:rotate(-4deg); }
-.sc2 { top:4%;  left:41%; width:10%; height:7%; transform:rotate(3.5deg); }
-.sc3 { top:9%;  left:55%; width:8%;  height:6%; transform:rotate(-2deg); opacity:.7; }
+/* ── scattered papers — hidden ── */
+.sc1, .sc2, .sc3 { display:none; }
+
+/* ── back paper (previous drawing, peeks from behind main canvas) ── */
+.back-paper {
+  position:absolute; top:8%; left:13%; width:48%; height:62%;
+  background:var(--paper-lo); border-radius:2px; z-index:4;
+  transform:rotate(8deg) translateX(52%);
+  box-shadow:0 4px 18px rgba(20,10,2,.28), 0 1px 4px rgba(20,10,2,.14);
+  pointer-events:none; overflow:hidden;
+}
+.back-paper img { width:100%; height:100%; object-fit:cover; opacity:0.7; }
 
 /* ── big drawing paper ── */
 .big-paper {
-  position:absolute; top:12%; left:15%; width:50%; height:65%;
+  position:absolute; top:8%; left:14%; width:47%; height:60%;
   background:var(--paper); border-radius:2px; cursor:pointer; z-index:5;
   box-shadow:0 8px 28px rgba(20,10,2,.38),0 3px 8px rgba(20,10,2,.22),inset 0 0 0 .5px rgba(0,0,0,.05);
   transition:transform .32s cubic-bezier(.2,.85,.3,1),box-shadow .32s;
@@ -276,7 +362,7 @@ const DESK_CSS = `
 
 /* ── journal ── */
 .journal {
-  position:absolute; top:10%; right:4%; width:20%; height:42%;
+  position:absolute; top:14%; right:4%; width:19%; height:40%;
   cursor:pointer; z-index:5;
   transition:transform .32s cubic-bezier(.2,.85,.3,1),filter .3s;
 }
@@ -331,8 +417,8 @@ const DESK_CSS = `
 }
 .journal:hover .journal-label { opacity:1; }
 
-/* ── palette cards ── */
-.palette-cards { position:absolute; bottom:9%; left:5%; z-index:5; display:flex; gap:10px; }
+/* ── palette cards — vertical stack left side below pens ── */
+.palette-cards { position:absolute; top:52%; left:3%; z-index:5; display:flex; flex-direction:column; gap:8px; }
 .pal-card {
   width:60px; height:76px; background:var(--paper); border-radius:2px;
   box-shadow:0 3px 12px rgba(30,18,6,.28),0 1px 3px rgba(30,18,6,.16);
@@ -359,9 +445,9 @@ const DESK_CSS = `
 }
 .gc-tl { position:absolute; top:5px;    left:5px;  width:9px; height:9px; border-top:.75px solid rgba(200,168,75,.45); border-left:.75px solid rgba(200,168,75,.45); }
 .gc-br { position:absolute; bottom:5px; right:5px; width:9px; height:9px; border-bottom:.75px solid rgba(200,168,75,.28); border-right:.75px solid rgba(200,168,75,.28); }
-.sp-back  { bottom:18%; right:12%; width:21%; transform:rotate(-2deg); }
+.sp-back  { bottom:10%; right:5%; width:21%; transform:rotate(-2deg); }
 .sp-back:hover  { transform:rotate(-2deg) translateY(-7px);  box-shadow:0 14px 32px rgba(30,18,6,.36); }
-.sp-front { bottom:5%;  right:7%;  width:23%; transform:rotate(2.8deg); }
+.sp-front { bottom:2%;  right:3%; width:23%; transform:rotate(2.8deg); }
 .sp-front:hover { transform:rotate(2.8deg) translateY(-7px); box-shadow:0 14px 32px rgba(30,18,6,.36); }
 .stat-lbl  { font-family:'Cormorant Garamond',serif; font-size:10px;  color:rgba(70,46,16,.44); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:2px; position:relative; z-index:1; }
 .stat-val  { font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:#1E1710; line-height:1; position:relative; z-index:1; }
@@ -446,7 +532,7 @@ const DESK_CSS = `
 
 export default function DeskSection() {
   const navigate = useNavigate();
-  const { user } = useApp();
+  const { user, session } = useApp();
 
   // modal state — show if no name (user.name is always set in AppContext for now)
   const [showModal, setShowModal] = useState(false);
@@ -459,6 +545,7 @@ export default function DeskSection() {
   const deskWrapRef = useRef(null);
   const wallNameRef = useRef(null);
   const deskLegsRef = useRef(null);
+  const windowsRef = useRef(null);
   const progressRef = useRef(0);
 
   const TOTAL_PHASES = 2;
@@ -481,7 +568,7 @@ export default function DeskSection() {
       const p1 = clamp01(progressRef.current);
       const rotX = lerp(18, 0, p1);
       const rotZ = lerp(-1, 0, p1);
-      const sc1 = lerp(1.05, 1, p1);
+      const sc1 = lerp(0.78, 1, p1);
 
       // Phase 2 (1→2): zoom in
       const p2 = clamp01(progressRef.current - 1);
@@ -498,6 +585,10 @@ export default function DeskSection() {
         const legP = clamp01((p1 - 0.3) / 0.45);
         deskLegsRef.current.style.opacity = String(1 - legP);
         deskLegsRef.current.style.transform = `translateY(${lerp(0, 28, legP)}px)`;
+      }
+      if (windowsRef.current) {
+        windowsRef.current.style.transform = `translateX(-50%) translateY(${lerp(0, -120, p1)}px)`;
+        windowsRef.current.style.opacity = String(lerp(1, 0, p1));
       }
     }
 
@@ -603,6 +694,26 @@ export default function DeskSection() {
 
       <section className="scene-outer" ref={sectionRef}>
         <div className="scene-sticky">
+          {/* Room background — behind everything */}
+          <div className="room-molding" />
+          <div className="room-floor" />
+          <div className="room-baseboard" />
+          <div className="room-window-wrap" ref={windowsRef}>
+            <div className="room-window-glow" />
+            <div className="room-window-panel">
+              <div className="room-window-trim">
+                <div className="room-window-glass" />
+              </div>
+              <div className="room-window-sill" />
+            </div>
+            <div className="room-window-panel">
+              <div className="room-window-trim">
+                <div className="room-window-glass" />
+              </div>
+              <div className="room-window-sill" />
+            </div>
+          </div>
+
           <div className="scene-texture" />
           <div className="scene-vignette" />
           <div className="scene-lampglow" />
@@ -655,10 +766,10 @@ export default function DeskSection() {
                   />
                 </div>
 
-                {/* Scattered papers */}
-                <div className="scatter sc1" />
-                <div className="scatter sc2" />
-                <div className="scatter sc3" />
+                {/* Back paper — previous drawing peeks behind main canvas */}
+                <div className="back-paper">
+                  {session?.drawingDataURL && <img src={session.drawingDataURL} alt="" />}
+                </div>
 
                 {/* Big drawing paper */}
                 <div

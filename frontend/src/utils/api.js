@@ -5,28 +5,70 @@ async function request(path, options = {}) {
     headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
   })
-  if (!res.ok) throw new Error(`API ${res.status}: ${path}`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`API ${res.status} ${path}: ${body}`)
+  }
   return res.json()
 }
 
-// Graceful fallback wrappers — UI never breaks on missing backend
 export const api = {
-  chat: (body) =>
-    request('/api/chat', { method: 'POST', body: JSON.stringify(body) }).catch(() => ({
-      reply: 'What are you noticing in your painting right now?',
-    })),
+  // POST /session/start — creates session row, returns { session_id }
+  startSession: (userId) =>
+    request('/session/start', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId }),
+    }),
 
-  reflection: (body) =>
-    request('/api/reflection', { method: 'POST', body: JSON.stringify(body) }).catch(() => ({
-      reflection:
-        'You showed up today. You let something move through your hands and onto the canvas. That is not a small thing. Whatever you were carrying when you arrived — you set it down, even briefly, and made something. The colors you chose, the marks you left: they are honest. They belong to you.',
-    })),
+  // POST /session/intake — extracts themes from text, returns { themes, drawing_prompt, opening_response }
+  sendIntake: (sessionId, transcript, moodCheckin) =>
+    request('/session/intake', {
+      method: 'POST',
+      body: JSON.stringify({
+        session_id: sessionId,
+        transcript,
+        mood_checkin: moodCheckin,
+      }),
+    }),
 
-  saveJournal: (body) =>
-    request('/api/journal/save', { method: 'POST', body: JSON.stringify(body) }).catch(() => ({
-      ok: true,
-    })),
+  // POST /session/canvas-snapshot — processes behavioral metrics, may return trigger
+  sendSnapshot: (sessionId, snapshot, dialogueHistory, intakeThemes) =>
+    request('/session/canvas-snapshot', {
+      method: 'POST',
+      body: JSON.stringify({
+        session_id: sessionId,
+        snapshot,
+        dialogue_history: dialogueHistory,
+        intake_themes: intakeThemes,
+      }),
+    }),
 
-  getJournal: () =>
-    request('/api/journal').catch(() => ({ entries: [] })),
+  // POST /session/end — uploads drawing, runs vision, generates questions
+  endSession: (sessionId, imageBase64, canvasSummary, dialogueHistory) =>
+    request('/session/end', {
+      method: 'POST',
+      body: JSON.stringify({
+        session_id: sessionId,
+        image_base64: imageBase64.replace(/^data:image\/\w+;base64,/, ''),
+        canvas_summary: canvasSummary,
+        dialogue_history: dialogueHistory,
+      }),
+    }),
+
+  // POST /session/complete — generates letter, saves to Supabase
+  completeSession: (sessionId, userId, { moodCheckout, userAnswers, durationSeconds, fullSessionData }) =>
+    request('/session/complete', {
+      method: 'POST',
+      body: JSON.stringify({
+        session_id: sessionId,
+        user_id: userId,
+        mood_checkout: moodCheckout,
+        user_answers: userAnswers,
+        duration_seconds: durationSeconds,
+        full_session_data: fullSessionData,
+      }),
+    }),
+
+  // GET /sessions/{user_id} — returns last 7 sessions
+  getSessions: (userId) => request(`/sessions/${userId}`),
 }

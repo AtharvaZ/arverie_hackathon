@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import OrnamentalDivider from '../components/OrnamentalDivider'
 import { api } from '../utils/api'
+import { useApp } from '../context/AppContext'
 
 /* ─── Placeholder entries ─── */
 const PLACEHOLDER = [
@@ -323,6 +324,7 @@ function PageSpread({ entries, spreadIndex, onFlipForward, onFlipBack, flipping,
 /* ─── JournalPage ─── */
 export default function JournalPage() {
   const navigate = useNavigate()
+  const { session } = useApp()
   const [entries, setEntries] = useState(PLACEHOLDER)
   const [phase, setPhase] = useState('cover') // cover | dots | spread
   const [dotCount, setDotCount] = useState(0)
@@ -331,12 +333,28 @@ export default function JournalPage() {
   const [flipDir, setFlipDir] = useState(null)
   const [closing, setClosing] = useState(false)
 
-  // Fetch
+  // Fetch sessions from backend
   useEffect(() => {
-    api.getJournal().then((data) => {
-      if (data?.entries?.length) setEntries(data.entries)
-    })
-  }, [])
+    const userId = session.userId
+    if (!userId) return
+    api.getSessions(userId).then((data) => {
+      if (data?.sessions?.length) {
+        // Map backend session shape to journal entry shape
+        const mapped = data.sessions.map((s) => ({
+          id: s.id,
+          date: new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          duration: s.data?.canvas_summary?.total_time_seconds
+            ? `${Math.round(s.data.canvas_summary.total_time_seconds / 60)} min`
+            : '—',
+          mood: s.mood_checkin || '—',
+          moodColor: s.data?.color_palette?.[0] || '#8a7a6a',
+          letter: s.data?.letter || '',
+          thumbnail: s.drawing_url || null,
+        }))
+        setEntries(mapped)
+      }
+    }).catch(() => {}) // Fall through to PLACEHOLDER on error
+  }, [session.userId])
 
   // Dot sequence after cover done
   function onCoverComplete() {
