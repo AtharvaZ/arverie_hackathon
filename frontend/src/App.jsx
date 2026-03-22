@@ -6,12 +6,10 @@ import SessionPage from './pages/SessionPage'
 import CanvasPage from './pages/CanvasPage'
 import SummaryPage from './pages/SummaryPage'
 import JournalPage from './pages/JournalPage'
-import CustomCursor from './components/CustomCursor'
 
 export default function App() {
   return (
     <AppProvider>
-      <CustomCursor />
       <AnimatePresence mode="wait">
         <Routes>
           <Route path="/" element={<LandingPage />} />
