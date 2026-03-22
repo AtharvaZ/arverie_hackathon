@@ -1,7 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import OrnamentalDivider from "../components/OrnamentalDivider";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 
 const EMPTY_LABEL = "No response shared.";
@@ -19,21 +17,6 @@ function toText(value, fallback = "") {
   return String(value);
 }
 
-function toSeconds(sessionRow, data) {
-  const directDuration = Number(sessionRow?.duration_seconds);
-  if (Number.isFinite(directDuration) && directDuration > 0)
-    return directDuration;
-
-  const dataDuration = Number(data?.duration_seconds);
-  if (Number.isFinite(dataDuration) && dataDuration > 0) return dataDuration;
-
-  const summaryDuration = Number(data?.canvas_summary?.total_time_seconds);
-  if (Number.isFinite(summaryDuration) && summaryDuration > 0)
-    return summaryDuration;
-
-  return 0;
-}
-
 function isColorToken(value) {
   if (typeof value !== "string") return false;
   const color = value.trim();
@@ -45,19 +28,27 @@ function isColorToken(value) {
   );
 }
 
+function toSeconds(sessionRow, data) {
+  const directDuration = Number(sessionRow?.duration_seconds);
+  if (Number.isFinite(directDuration) && directDuration > 0) return directDuration;
+  const dataDuration = Number(data?.duration_seconds);
+  if (Number.isFinite(dataDuration) && dataDuration > 0) return dataDuration;
+  const summaryDuration = Number(data?.canvas_summary?.total_time_seconds);
+  if (Number.isFinite(summaryDuration) && summaryDuration > 0) return summaryDuration;
+  return 0;
+}
+
 function collectPalette(data) {
   const paletteCandidates = [
     ...safeArray(data?.color_palette),
     ...safeArray(data?.canvas_summary?.colors_used),
     ...safeArray(data?.canvas_summary?.palette),
   ];
-
   const unique = [];
   paletteCandidates.forEach((token) => {
     if (isColorToken(token) && !unique.includes(token)) unique.push(token);
   });
-
-  return unique.slice(0, 6);
+  return unique.slice(0, 8);
 }
 
 function buildAnsweredQuestions(data) {
@@ -90,6 +81,7 @@ function normalizeSessionRow(row) {
   const data = row?.data && typeof row.data === "object" ? row.data : {};
   const dateValue = row?.created_at ? new Date(row.created_at) : null;
   const validDate = dateValue && !Number.isNaN(dateValue.getTime());
+
   const formattedDate = validDate
     ? dateValue.toLocaleDateString("en-US", {
         month: "short",
@@ -99,674 +91,100 @@ function normalizeSessionRow(row) {
     : "Unknown date";
 
   const seconds = toSeconds(row, data);
-  const duration =
-    seconds > 0
-      ? `${Math.max(1, Math.round(seconds / 60))} min`
-      : "Unknown duration";
-  const palette = collectPalette(data);
-  const questions = buildAnsweredQuestions(data);
-  const letter = toText(data?.letter, "No letter saved for this session yet.");
+  const durationLabel =
+    seconds > 0 ? `${Math.max(1, Math.round(seconds / 60))} min` : "Unknown duration";
 
   return {
     id: toText(row?.id, crypto.randomUUID()),
     sortDate: validDate ? dateValue.getTime() : 0,
     date: formattedDate,
-    mood: toText(row?.mood_checkout || row?.mood_checkin, "Unknown mood"),
-    duration,
-    drawingUrl: toText(row?.drawing_url || data?.drawing_url, ""),
-    palette,
-    questions,
-    letter,
-    moodColor: palette[0] || "#8a7a6a",
+    duration: durationLabel,
+    moodCheckin: toText(row?.mood_checkin || data?.mood_checkin, "Unknown"),
+    moodCheckout: toText(
+      row?.mood_checkout || data?.mood_checkout,
+      toText(row?.mood_checkin || data?.mood_checkin, "Unknown"),
+    ),
+    palette: collectPalette(data),
+    letter: toText(data?.letter, "No letter saved for this session yet."),
+    questions: buildAnsweredQuestions(data),
   };
 }
 
-function JournalCover({ userName, onComplete }) {
-  return (
-    <motion.div
-      initial={{ scale: 0.15, rotateY: -28 }}
-      animate={[
-        {
-          scale: 1,
-          rotateY: -28,
-          transition: { duration: 0.5, ease: [0.34, 1.2, 0.64, 1] },
-        },
-        {
-          rotateY: 0,
-          transition: { duration: 0.85, ease: "easeInOut", delay: 0.5 },
-        },
-      ]}
-      onAnimationComplete={onComplete}
-      style={{
-        width: "180px",
-        height: "240px",
-        position: "relative",
-        perspective: "1000px",
-        transformStyle: "preserve-3d",
-        cursor: "default",
-      }}
-    >
-      {/* Cover body */}
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          background: "#4a2006",
-          borderRadius: "3px 12px 12px 3px",
-          border: "1px solid rgba(212,175,55,0.3)",
-          boxShadow:
-            "6px 6px 28px rgba(0,0,0,0.5), inset 0 1px 0 rgba(212,175,55,0.18)",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "12px",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {/* Spine */}
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: "13px",
-            background: "#2e1303",
-            borderRadius: "3px 0 0 3px",
-          }}
-        />
-        {/* Page edge */}
-        <div
-          style={{
-            position: "absolute",
-            right: "-7px",
-            top: "5px",
-            bottom: "5px",
-            width: "8px",
-            background: "#f0e4c0",
-            borderRadius: "0 2px 2px 0",
-            border: "1px solid rgba(170,140,80,0.25)",
-          }}
-        />
-        {/* Ornament diamond */}
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-          <path
-            d="M14 2 L26 14 L14 26 L2 14 Z"
-            stroke="rgba(212,175,55,0.55)"
-            strokeWidth="1"
-            fill="none"
-          />
-          <path
-            d="M14 7 L21 14 L14 21 L7 14 Z"
-            stroke="rgba(212,175,55,0.3)"
-            strokeWidth="0.8"
-            fill="none"
-          />
-        </svg>
-        <p
-          style={{
-            fontFamily: "Cinzel, serif",
-            fontSize: "13px",
-            color: "rgba(212,175,55,0.9)",
-            letterSpacing: "0.1em",
-          }}
-        >
-          {userName || "Journal"}
-        </p>
-        <div
-          style={{
-            width: "52px",
-            height: "1px",
-            background: "rgba(212,175,55,0.28)",
-          }}
-        />
-        <p
-          style={{
-            fontFamily: "Cinzel, serif",
-            fontSize: "8px",
-            color: "rgba(212,175,55,0.4)",
-            letterSpacing: "0.2em",
-          }}
-        >
-          JOURNAL I
-        </p>
-      </div>
-    </motion.div>
-  );
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      if (existing.dataset.loaded === "true") { resolve(); return; }
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error(src)), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = false; // keep order: jQuery must load before turn.js
+    script.onload = () => { script.dataset.loaded = "true"; resolve(); };
+    script.onerror = () => reject(new Error(src));
+    document.body.appendChild(script);
+  });
 }
 
-function DotRow({ activeCount }) {
+function LeftSessionPage({ entry }) {
   return (
-    <div style={{ display: "flex", gap: "8px", marginTop: "20px" }}>
-      {[0, 1, 2, 3].map((i) => (
-        <motion.div
-          key={i}
-          animate={{
-            background:
-              i < activeCount
-                ? "rgba(212,175,55,0.85)"
-                : "rgba(212,175,55,0.18)",
-          }}
-          transition={{ duration: 0.3 }}
-          style={{ width: "7px", height: "7px", borderRadius: "50%" }}
-        />
-      ))}
-    </div>
-  );
-}
+    <div className="journal-page-content">
+      <h3 className="journal-heading">Session — {entry.date}</h3>
 
-function OverlayModal({ title, children, onClose }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(32, 19, 4, 0.66)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 160,
-        padding: "20px",
-      }}
-    >
-      <motion.div
-        initial={{ y: 18, opacity: 0, scale: 0.98 }}
-        animate={{ y: 0, opacity: 1, scale: 1 }}
-        exit={{ y: 10, opacity: 0, scale: 0.98 }}
-        transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
-        style={{
-          width: "min(620px, 100%)",
-          maxHeight: "78vh",
-          overflowY: "auto",
-          borderRadius: "12px",
-          border: "1px solid rgba(190, 148, 68, 0.35)",
-          background: "#fbf3e1",
-          boxShadow: "0 20px 56px rgba(0,0,0,0.36)",
-          padding: "16px 16px 18px",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "10px",
-          }}
-        >
-          <h3
-            style={{
-              margin: 0,
-              fontFamily: "Cinzel, serif",
-              fontSize: "12px",
-              letterSpacing: "0.12em",
-              color: "var(--text-muted)",
-            }}
-          >
-            {title}
-          </h3>
-          <button
-            onClick={onClose}
-            aria-label="Close modal"
-            style={{
-              width: "30px",
-              height: "30px",
-              borderRadius: "50%",
-              border: "1px solid rgba(190, 148, 68, 0.4)",
-              background: "rgba(255, 248, 232, 0.94)",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--text)",
-              fontSize: "14px",
-              fontWeight: 700,
-              lineHeight: 1,
-            }}
-          >
-            X
-          </button>
-        </div>
-        <OrnamentalDivider />
-        <div style={{ marginTop: "12px" }}>{children}</div>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-function LeftJournalPage({ entry, pageNum }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: "10px",
-        }}
-      >
-        <span
-          style={{
-            fontFamily: "Cinzel, serif",
-            fontSize: "9px",
-            color: "var(--text-muted)",
-          }}
-        >
-          {pageNum}
-        </span>
-        <span
-          style={{
-            fontFamily: "Cinzel, serif",
-            fontSize: "9px",
-            color: "var(--text-muted)",
-          }}
-        >
-          {entry.date}
-        </span>
-      </div>
-
-      <div
-        className="drawing-frame"
-        style={{
-          border: "1px solid var(--border)",
-          borderRadius: "6px",
-          overflow: "hidden",
-          marginBottom: "10px",
-          background: entry.moodColor ? `${entry.moodColor}22` : "#f0e8d0",
-          minHeight: "300px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {entry.drawingUrl ? (
-          <img
-            src={entry.drawingUrl}
-            alt="Session drawing"
-            style={{ display: "block", width: "100%" }}
-          />
-        ) : (
-          <svg
-            width="120"
-            height="72"
-            viewBox="0 0 60 36"
-            fill="none"
-            style={{ opacity: 0.3 }}
-          >
-            <path
-              d="M6 28 C14 10 22 20 30 14 C38 8 44 22 54 8"
-              stroke={entry.moodColor || "#c8a040"}
-              strokeWidth="1.4"
-              fill="none"
-              strokeLinecap="round"
-            />
-            <circle cx="6" cy="28" r="2" fill={entry.moodColor || "#c8a040"} />
-            <circle cx="30" cy="14" r="2" fill={entry.moodColor || "#c8a040"} />
-            <circle cx="54" cy="8" r="2" fill={entry.moodColor || "#c8a040"} />
-          </svg>
-        )}
-      </div>
-
-      <OrnamentalDivider />
-
-      <div
-        style={{
-          fontFamily: "Cinzel, serif",
-          fontSize: "8px",
-          letterSpacing: "0.12em",
-          color: "var(--text-muted)",
-          display: "flex",
-          alignItems: "center",
-          gap: "6px",
-          marginTop: "12px",
-        }}
-      >
-        <span
-          style={{
-            width: "6px",
-            height: "6px",
-            borderRadius: "50%",
-            background: entry.moodColor,
-            display: "inline-block",
-            flexShrink: 0,
-          }}
-        />
-        {entry.duration.toUpperCase()} . {entry.mood.toUpperCase()}
-      </div>
-    </div>
-  );
-}
-
-function RightJournalPage({ entry, pageNum, onOpenQuestions, onOpenLetter }) {
-  const hasPalette = entry.palette.length > 0;
-  const hasQuestions = entry.questions.length > 0;
-  const hasLetter = Boolean(entry.letter);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: "10px",
-        }}
-      >
-        <span
-          style={{
-            fontFamily: "Cinzel, serif",
-            fontSize: "9px",
-            color: "var(--text-muted)",
-          }}
-        >
-          {pageNum}
-        </span>
-        <span
-          style={{
-            fontFamily: "Cinzel, serif",
-            fontSize: "9px",
-            color: "var(--text-muted)",
-          }}
-        >
-          {entry.date}
-        </span>
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-        <section
-          className="card"
-          style={{ padding: "12px", borderRadius: "7px" }}
-        >
-          <h4
-            style={{
-              margin: 0,
-              marginBottom: "10px",
-              fontFamily: "Cinzel, serif",
-              letterSpacing: "0.12em",
-              fontSize: "9px",
-              color: "var(--text-muted)",
-            }}
-          >
-            Color Palette
-          </h4>
-          {hasPalette ? (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-              {entry.palette.map((color) => (
-                <div
-                  key={color}
-                  title={color}
-                  style={{
-                    width: "20px",
-                    height: "20px",
-                    borderRadius: "50%",
-                    border: "1px solid rgba(145, 108, 50, 0.35)",
-                    background: color,
-                  }}
-                />
-              ))}
-            </div>
+      <div className="journal-section">
+        <p className="journal-label">Color Palette</p>
+        <div className="journal-swatch-row">
+          {entry.palette.length > 0 ? (
+            entry.palette.map((color) => (
+              <div key={`${entry.id}-${color}`} className="swatch-wrap">
+                <span className="swatch" style={{ background: color }} />
+                <small>{color}</small>
+              </div>
+            ))
           ) : (
-            <p
-              style={{
-                margin: 0,
-                fontFamily: "IM Fell English, serif",
-                fontSize: "12px",
-                color: "var(--text-muted)",
-              }}
-            >
-              No palette data saved for this session.
-            </p>
+            <p className="journal-body">No palette data saved for this session.</p>
           )}
-        </section>
+        </div>
+      </div>
 
-        <button
-          onClick={onOpenQuestions}
-          className="card"
-          style={{
-            borderRadius: "7px",
-            padding: "12px",
-            background: "rgba(255, 252, 242, 0.92)",
-            border: "1px solid rgba(160, 120, 60, 0.22)",
-            textAlign: "left",
-            cursor: "pointer",
-          }}
-        >
-          <h4
-            style={{
-              margin: 0,
-              marginBottom: "6px",
-              fontFamily: "Cinzel, serif",
-              letterSpacing: "0.12em",
-              fontSize: "9px",
-              color: "var(--text-muted)",
-            }}
-          >
-            Questions Answered
-          </h4>
-          <p
-            style={{
-              margin: 0,
-              fontFamily: "IM Fell English, serif",
-              fontSize: "13px",
-              color: "var(--text)",
-              opacity: 0.85,
-            }}
-          >
-            {hasQuestions
-              ? `${entry.questions.length} answered prompts. Click to read all.`
-              : "No answered prompts were saved for this session."}
-          </p>
-        </button>
+      <div className="journal-section">
+        <p className="journal-label">Mood</p>
+        <p className="journal-body">
+          Check-in: <strong>{entry.moodCheckin}</strong>
+        </p>
+        <p className="journal-body">
+          Check-out: <strong>{entry.moodCheckout}</strong>
+        </p>
+        <p className="journal-body">Duration: {entry.duration}</p>
+      </div>
 
-        <button
-          onClick={onOpenLetter}
-          className="card"
-          style={{
-            borderRadius: "7px",
-            padding: "12px",
-            background: "rgba(255, 252, 242, 0.92)",
-            border: "1px solid rgba(160, 120, 60, 0.22)",
-            textAlign: "left",
-            cursor: "pointer",
-          }}
-        >
-          <h4
-            style={{
-              margin: 0,
-              marginBottom: "6px",
-              fontFamily: "Cinzel, serif",
-              letterSpacing: "0.12em",
-              fontSize: "9px",
-              color: "var(--text-muted)",
-            }}
-          >
-            Session Letter
-          </h4>
-          <p
-            style={{
-              margin: 0,
-              fontFamily: "IM Fell English, serif",
-              fontSize: "13px",
-              color: "var(--text)",
-              opacity: 0.85,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              display: "-webkit-box",
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: "vertical",
-            }}
-          >
-            {hasLetter ? entry.letter : "No letter saved for this session yet."}
-          </p>
-        </button>
+      <div className="journal-section">
+        <p className="journal-label">Session Letter</p>
+        <p className="journal-body letter-body">{entry.letter}</p>
       </div>
     </div>
   );
 }
 
-function PageSpread({
-  entry,
-  spreadIndex,
-  hasPrev,
-  hasNext,
-  onFlipForward,
-  onFlipBack,
-  flipping,
-  flipDir,
-  onOpenQuestions,
-  onOpenLetter,
-}) {
-  const [leftCurl, setLeftCurl] = useState(false);
-  const [rightCurl, setRightCurl] = useState(false);
-
+function RightSessionPage({ entry }) {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 13px 1fr",
-        width: "min(820px, 96vw)",
-        border: "1px solid rgba(150,110,55,0.2)",
-        borderRadius: "8px",
-        overflow: "hidden",
-        boxShadow: "0 8px 48px rgba(0,0,0,0.38)",
-        position: "relative",
-      }}
-    >
-      <div
-        className="journal-ruled"
-        style={{
-          background: "#faf2de",
-          minHeight: "420px",
-          padding: "18px 16px",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {entry ? (
-          <LeftJournalPage entry={entry} pageNum={spreadIndex * 2 + 1} />
+    <div className="journal-page-content">
+      <h3 className="journal-heading">Reflection</h3>
+
+      <div className="journal-section">
+        <p className="journal-label">Reflection Q&amp;A</p>
+        {entry.questions.length > 0 ? (
+          entry.questions.map((qa, index) => (
+            <div key={`${entry.id}-qa-${index}`} className="qa-block">
+              <p className="qa-question">Q: {qa.question}</p>
+              <p className="qa-answer">A: {qa.answer}</p>
+            </div>
+          ))
         ) : (
-          <p
-            style={{
-              fontFamily: "IM Fell English, serif",
-              fontStyle: "italic",
-              color: "rgba(58,34,8,0.18)",
-              fontSize: "13px",
-              textAlign: "center",
-              paddingTop: "40px",
-            }}
-          >
-            — empty —
-          </p>
+          <p className="journal-body">No answered prompts were saved for this session.</p>
         )}
-        {entry && hasPrev && (
-          <div
-            onMouseEnter={() => setLeftCurl(true)}
-            onMouseLeave={() => setLeftCurl(false)}
-            onClick={onFlipBack}
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              width: 0,
-              height: 0,
-              borderStyle: "solid",
-              borderWidth: leftCurl ? "0 0 44px 44px" : "0",
-              borderColor: `transparent transparent transparent rgba(175,145,75,0.35)`,
-              cursor: "pointer",
-              transition: "border-width 0.25s cubic-bezier(0.4,0,0.2,1)",
-            }}
-          />
-        )}
-      </div>
-
-      {/* Spine */}
-      <div
-        style={{
-          background:
-            "linear-gradient(90deg, rgba(120,85,30,0.1), rgba(170,130,50,0.15), rgba(120,85,30,0.1))",
-          zIndex: 4,
-        }}
-      />
-
-      <div
-        className="journal-ruled"
-        style={{
-          background: "#faf2de",
-          minHeight: "420px",
-          padding: "18px 16px",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {entry ? (
-          <RightJournalPage
-            entry={entry}
-            pageNum={spreadIndex * 2 + 2}
-            onOpenQuestions={onOpenQuestions}
-            onOpenLetter={onOpenLetter}
-          />
-        ) : (
-          <p
-            style={{
-              fontFamily: "IM Fell English, serif",
-              fontStyle: "italic",
-              color: "rgba(58,34,8,0.18)",
-              fontSize: "13px",
-              textAlign: "center",
-              paddingTop: "40px",
-            }}
-          >
-            — end —
-          </p>
-        )}
-        {entry && hasNext && (
-          <div
-            onMouseEnter={() => setRightCurl(true)}
-            onMouseLeave={() => setRightCurl(false)}
-            onClick={onFlipForward}
-            style={{
-              position: "absolute",
-              bottom: 0,
-              right: 0,
-              width: 0,
-              height: 0,
-              borderStyle: "solid",
-              borderWidth: rightCurl ? "0 44px 44px 0" : "0",
-              borderColor: `transparent rgba(175,145,75,0.35) transparent transparent`,
-              cursor: "pointer",
-              transition: "border-width 0.25s cubic-bezier(0.4,0,0.2,1)",
-            }}
-          />
-        )}
-
-        <AnimatePresence>
-          {flipping && (
-            <motion.div
-              initial={{ rotateY: 0 }}
-              animate={{ rotateY: flipDir === "forward" ? -180 : 180 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.62, ease: [0.4, 0, 0.2, 1] }}
-              style={{
-                position: "absolute",
-                top: 0,
-                bottom: 0,
-                left: flipDir === "forward" ? 0 : "auto",
-                right: flipDir === "back" ? 0 : "auto",
-                width: "50%",
-                background: "#f5ecca",
-                transformOrigin:
-                  flipDir === "forward" ? "left center" : "right center",
-                transformStyle: "preserve-3d",
-                zIndex: 10,
-              }}
-            />
-          )}
-        </AnimatePresence>
       </div>
     </div>
   );
@@ -774,21 +192,17 @@ function PageSpread({
 
 export default function JournalPage() {
   const navigate = useNavigate();
-  const { id: selectedSessionId } = useParams();
   const { session, user, pastSessions, refreshPastSessions } = useApp();
-  const [phase, setPhase] = useState("cover");
-  const [dotCount, setDotCount] = useState(0);
-  const [spreadIndex, setSpreadIndex] = useState(0);
-  const [flipping, setFlipping] = useState(false);
-  const [flipDir, setFlipDir] = useState(null);
-  const [closing, setClosing] = useState(false);
-  const [activeModal, setActiveModal] = useState(null);
+  const [scriptsReady, setScriptsReady] = useState(false);
+  const [bookReady, setBookReady] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const flipbookRef = useRef(null);
+  const totalPagesRef = useRef(0);
 
   useEffect(() => {
     const userId = session.userId || user.id;
     if (!userId) return;
     refreshPastSessions(userId);
-
     const onFocus = () => refreshPastSessions(userId);
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
@@ -798,391 +212,416 @@ export default function JournalPage() {
     const normalized = safeArray(pastSessions)
       .map(normalizeSessionRow)
       .sort((a, b) => b.sortDate - a.sortDate);
-
-    const drawable = normalized.filter((entry) => Boolean(entry.drawingUrl));
-    const source = drawable.length > 0 ? drawable : normalized;
-
-    return source.slice(0, 5);
+    return normalized.slice(0, 10);
   }, [pastSessions]);
 
+  // Load jQuery then turn.js in order
   useEffect(() => {
-    if (entries.length === 0) {
-      setSpreadIndex(0);
-      return;
-    }
-
-    if (!selectedSessionId) {
-      setSpreadIndex((current) => Math.min(current, entries.length - 1));
-      return;
-    }
-
-    const matchIndex = entries.findIndex(
-      (entry) => entry.id === selectedSessionId,
-    );
-    if (matchIndex >= 0) {
-      setSpreadIndex(matchIndex);
-    }
-  }, [entries, selectedSessionId]);
-
-  function onCoverComplete() {
-    setPhase("dots");
-    let count = 0;
-    const t = setInterval(() => {
-      count++;
-      setDotCount(count);
-      if (count >= 4) {
-        clearInterval(t);
-        setTimeout(() => setPhase("spread"), 400);
+    let cancelled = false;
+    async function ensureLibraries() {
+      try {
+        if (!window.jQuery) {
+          await loadScript("/journal-flip/jquery.js");
+        }
+        const jq = window.jQuery;
+        if (!jq?.fn?.turn) {
+          await loadScript("/journal-flip/turn.js");
+        }
+        if (!cancelled) setScriptsReady(true);
+      } catch {
+        if (!cancelled) setScriptsReady(false);
       }
-    }, 1000);
-  }
+    }
+    ensureLibraries();
+    return () => { cancelled = true; };
+  }, []);
 
-  function flipForward() {
-    const maxSpread = Math.max(entries.length - 1, 0);
-    if (flipping || spreadIndex >= maxSpread) return;
-    setFlipping(true);
-    setFlipDir("forward");
-    setTimeout(() => {
-      setSpreadIndex((i) => i + 1);
-      setFlipping(false);
-      setFlipDir(null);
-    }, 340);
-  }
-
-  function flipBack() {
-    if (flipping || spreadIndex <= 0) return;
-    setFlipping(true);
-    setFlipDir("back");
-    setTimeout(() => {
-      setSpreadIndex((i) => i - 1);
-      setFlipping(false);
-      setFlipDir(null);
-    }, 340);
-  }
-
-  function handleClose() {
-    setClosing(true);
-    setTimeout(() => navigate(-1), 380);
-  }
-
+  // Init turn.js after scripts + entries are ready
   useEffect(() => {
-    if (phase !== "spread") return;
-    const onKeyDown = (event) => {
-      if (event.key === "ArrowRight") {
-        event.preventDefault();
-        flipForward();
+    if (!scriptsReady || entries.length === 0 || !flipbookRef.current) return;
+
+    const jq = window.jQuery;
+    if (!jq?.fn?.turn) return;
+
+    const element = flipbookRef.current;
+    const $flipbook = jq(element);
+
+    // Destroy previous instance if any
+    if ($flipbook.data("turn")) {
+      try { $flipbook.turn("destroy"); } catch (_) { /* ignore */ }
+    }
+
+    // Delay slightly so React has committed all children to DOM
+    const timer = setTimeout(() => {
+      const w = element.offsetWidth || 1000;
+      const h = element.offsetHeight || 600;
+
+      $flipbook.turn({
+        width: w,
+        height: h,
+        autoCenter: true,
+        gradients: true,
+        acceleration: true,
+        when: {
+          turned: function (e, page) {
+            setCurrentPage(page);
+          },
+        },
+      });
+
+      totalPagesRef.current = $flipbook.turn("pages");
+      setCurrentPage(1);
+      setBookReady(true);
+    }, 120);
+
+    return () => {
+      clearTimeout(timer);
+      if ($flipbook.data("turn")) {
+        try { $flipbook.turn("destroy"); } catch (_) { /* ignore */ }
       }
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        flipBack();
-      }
+      setBookReady(false);
     };
+  }, [scriptsReady, entries]);
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [phase, flipForward, flipBack]);
+  // Keyboard navigation
+  useEffect(() => {
+    if (!bookReady) return;
+    function onKey(e) {
+      const jq = window.jQuery;
+      if (!jq || !bookReady) return;
+      if (e.key === "ArrowLeft") jq(".flipbook").turn("previous");
+      if (e.key === "ArrowRight") jq(".flipbook").turn("next");
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [bookReady]);
 
-  const activeEntry = entries[spreadIndex] || null;
-  const maxSpread = Math.max(entries.length - 1, 0);
-  const hasPrev = spreadIndex > 0;
-  const hasNext = spreadIndex < maxSpread;
+  function handlePrev() {
+    const jq = window.jQuery;
+    if (!jq || !bookReady) return;
+    jq(".flipbook").turn("previous");
+  }
+
+  function handleNext() {
+    const jq = window.jQuery;
+    if (!jq || !bookReady) return;
+    jq(".flipbook").turn("next");
+  }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: closing ? 0 : 1 }}
-      transition={{ duration: 0.38 }}
-      onClick={(e) => e.target === e.currentTarget && handleClose()}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 100,
-        background: "rgba(58,34,8,0.88)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "20px",
-      }}
-    >
-      <button
-        onClick={handleClose}
-        style={{
-          position: "fixed",
-          top: "18px",
-          right: "18px",
-          width: "30px",
-          height: "30px",
-          borderRadius: "50%",
-          border: "1px solid rgba(212,175,55,0.35)",
-          background: "rgba(255,250,238,0.12)",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 110,
-        }}
-      >
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-          <path
-            d="M1 1 L10 10 M10 1 L1 10"
-            stroke="var(--gold)"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-          />
-        </svg>
-      </button>
+    <div className="journal-stage">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@400;500;600&display=swap');
 
-      <AnimatePresence mode="wait">
-        {phase === "cover" && (
-          <motion.div
-            key="cover"
-            exit={{ opacity: 0, scale: 1.04 }}
-            transition={{ duration: 0.28 }}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <JournalCover
-              userName={user?.name || "your journal"}
-              onComplete={onCoverComplete}
-            />
-          </motion.div>
-        )}
+        .journal-stage {
+          position: fixed;
+          inset: 0;
+          background: #1A1614;
+          z-index: 120;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-direction: column;
+          gap: 14px;
+          padding: 22px 16px;
+          overflow: auto;
+        }
 
-        {phase === "dots" && (
-          <motion.div
-            key="dots"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <JournalCover
-              userName={user?.name || "your journal"}
-              onComplete={() => {}}
-            />
-            <DotRow activeCount={dotCount} />
-          </motion.div>
-        )}
+        .journal-close {
+          position: fixed;
+          top: 18px;
+          right: 18px;
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          border: 1px solid rgba(245, 237, 218, 0.35);
+          color: #F5EDDA;
+          background: rgba(245, 237, 218, 0.08);
+          cursor: pointer;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 16px;
+          line-height: 1;
+        }
 
-        {phase === "spread" && (
-          <motion.div
-            key="spread"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.42 }}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "16px",
-              width: "100%",
-              maxHeight: "calc(100vh - 80px)",
-            }}
-          >
-            {activeEntry ? (
-              <>
-                <PageSpread
-                  entry={activeEntry}
-                  spreadIndex={spreadIndex}
-                  hasPrev={hasPrev}
-                  hasNext={hasNext}
-                  onFlipForward={flipForward}
-                  onFlipBack={flipBack}
-                  flipping={flipping}
-                  flipDir={flipDir}
-                  onOpenQuestions={() => setActiveModal("questions")}
-                  onOpenLetter={() => setActiveModal("letter")}
-                />
+        .flipbook {
+          width: 1000px;
+          height: 600px;
+          max-width: min(1000px, calc(100vw - 40px));
+          max-height: min(600px, calc(100vh - 140px));
+        }
 
-                <div
-                  style={{
-                    position: "fixed",
-                    left: "50%",
-                    bottom: "16px",
-                    transform: "translateX(-50%)",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "8px",
-                    zIndex: 120,
-                  }}
-                >
-                  <div style={{ display: "flex", gap: "12px" }}>
-                    <button
-                      className="btn"
-                      onClick={flipBack}
-                      disabled={!hasPrev}
-                      style={{
-                        padding: "6px 18px",
-                        fontSize: "10px",
-                        opacity: hasPrev ? 1 : 0.18,
-                      }}
-                    >
-                      prev
-                    </button>
-                    <button
-                      className="btn"
-                      onClick={flipForward}
-                      disabled={!hasNext}
-                      style={{
-                        padding: "6px 18px",
-                        fontSize: "10px",
-                        opacity: hasNext ? 1 : 0.18,
-                      }}
-                    >
-                      next
-                    </button>
-                  </div>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontFamily: "Cinzel, serif",
-                      fontSize: "10px",
-                      letterSpacing: "0.1em",
-                      color: "var(--text-muted)",
-                    }}
-                  >
-                    PAGE {entries.length > 0 ? spreadIndex + 1 : 0} /{" "}
-                    {entries.length}
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div
-                className="card"
-                style={{
-                  width: "min(560px, 90vw)",
-                  padding: "24px",
-                  textAlign: "center",
-                }}
-              >
-                <h3
-                  style={{
-                    margin: 0,
-                    marginBottom: "10px",
-                    fontFamily: "Cinzel, serif",
-                    fontSize: "12px",
-                    letterSpacing: "0.12em",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  Journal
-                </h3>
-                <p
-                  style={{
-                    margin: 0,
-                    fontFamily: "IM Fell English, serif",
-                    fontStyle: "italic",
-                    color: "var(--text)",
-                    fontSize: "18px",
-                    opacity: 0.85,
-                  }}
-                >
-                  No completed sessions yet. Finish a canvas session and your
-                  entries will appear here.
-                </p>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+        .flipbook .hard {
+          background: #5C4033 !important;
+          color: #F5EDDA;
+          border: 0;
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 38px;
+          font-weight: 600;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 24px;
+        }
 
-      <AnimatePresence>
-        {phase === "spread" && activeModal === "questions" && activeEntry && (
-          <OverlayModal
-            title="Answered Questions"
-            onClose={() => setActiveModal(null)}
-          >
-            {activeEntry.questions.length > 0 ? (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "12px",
-                }}
-              >
-                {activeEntry.questions.map((item, index) => (
-                  <div
-                    key={`${item.question}-${index}`}
-                    style={{
-                      border: "1px solid rgba(160, 120, 60, 0.2)",
-                      borderRadius: "8px",
-                      padding: "10px",
-                      background: "rgba(255, 250, 238, 0.7)",
-                    }}
-                  >
-                    <p
-                      style={{
-                        margin: 0,
-                        marginBottom: "6px",
-                        fontFamily: "Cinzel, serif",
-                        fontSize: "10px",
-                        letterSpacing: "0.08em",
-                        color: "var(--text-muted)",
-                      }}
-                    >
-                      {item.question}
-                    </p>
-                    <p
-                      style={{
-                        margin: 0,
-                        fontFamily: "IM Fell English, serif",
-                        fontStyle: "italic",
-                        fontSize: "17px",
-                        lineHeight: 1.5,
-                        color: "var(--text)",
-                      }}
-                    >
-                      {item.answer}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p
-                style={{
-                  margin: 0,
-                  fontFamily: "IM Fell English, serif",
-                  fontStyle: "italic",
-                  fontSize: "18px",
-                  color: "var(--text-muted)",
-                }}
-              >
-                No answered prompts were saved for this session.
-              </p>
-            )}
-          </OverlayModal>
-        )}
+        .cover-symbol {
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 48px;
+          line-height: 1;
+          margin-bottom: 12px;
+          opacity: 0.95;
+        }
 
-        {phase === "spread" && activeModal === "letter" && activeEntry && (
-          <OverlayModal
-            title="Session Letter"
-            onClose={() => setActiveModal(null)}
-          >
-            <p
-              style={{
-                margin: 0,
-                whiteSpace: "pre-wrap",
-                fontFamily: "IM Fell English, serif",
-                fontStyle: "italic",
-                fontSize: "20px",
-                lineHeight: 1.7,
-                color: "var(--text)",
-              }}
-            >
-              {activeEntry.letter}
-            </p>
-          </OverlayModal>
-        )}
-      </AnimatePresence>
-    </motion.div>
+        .cover-title {
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 56px;
+          font-style: italic;
+          font-weight: 500;
+          line-height: 1;
+          letter-spacing: 0.01em;
+        }
+
+        .cover-subtitle {
+          font-family: 'DM Sans', sans-serif;
+          font-size: 12px;
+          margin-top: 14px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          opacity: 0.75;
+        }
+
+        .back-cover-name {
+          font-family: 'DM Sans', sans-serif;
+          font-size: 13px;
+          margin-top: 12px;
+          letter-spacing: 0.04em;
+          opacity: 0.8;
+        }
+
+        .flipbook .page {
+          background: #F5EDDA;
+          border: 1px solid rgba(92, 64, 51, 0.2);
+          color: #2d211c;
+          display: flex;
+          flex-direction: column;
+          padding: 22px 20px;
+          overflow: hidden;
+        }
+
+        .journal-page-content {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          height: 100%;
+          overflow: auto;
+          padding-right: 4px;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(92, 64, 51, 0.3) transparent;
+        }
+
+        .journal-heading {
+          margin: 0 0 2px;
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 26px;
+          font-weight: 600;
+          line-height: 1.1;
+          border-bottom: 1px solid rgba(92, 64, 51, 0.2);
+          padding-bottom: 8px;
+        }
+
+        .journal-subheading {
+          margin: 0;
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 24px;
+          font-weight: 600;
+        }
+
+        .journal-body {
+          margin: 0;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 13px;
+          line-height: 1.5;
+        }
+
+        .journal-label {
+          margin: 0 0 5px;
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 17px;
+          font-weight: 600;
+          line-height: 1.15;
+        }
+
+        .journal-section {
+          border: 1px solid rgba(92, 64, 51, 0.15);
+          border-radius: 8px;
+          padding: 10px 12px;
+          background: rgba(255, 255, 255, 0.4);
+        }
+
+        .journal-swatch-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 4px;
+        }
+
+        .swatch-wrap {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 3px;
+          min-width: 48px;
+        }
+
+        .swatch-wrap small {
+          font-family: 'DM Sans', sans-serif;
+          font-size: 9px;
+          color: #5c4033;
+          text-align: center;
+        }
+
+        .swatch {
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          border: 1px solid rgba(92, 64, 51, 0.3);
+          display: inline-block;
+        }
+
+        .letter-body {
+          white-space: pre-wrap;
+          font-style: italic;
+          font-size: 12px;
+          opacity: 0.9;
+        }
+
+        .qa-block {
+          border-top: 1px dashed rgba(92, 64, 51, 0.22);
+          padding-top: 7px;
+          margin-top: 7px;
+        }
+
+        .qa-block:first-child {
+          border-top: none;
+          padding-top: 0;
+          margin-top: 0;
+        }
+
+        .qa-question,
+        .qa-answer {
+          margin: 0;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 12px;
+          line-height: 1.5;
+        }
+
+        .qa-question {
+          font-weight: 600;
+          margin-bottom: 3px;
+          color: #3d2b20;
+        }
+
+        .journal-controls {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .journal-controls button {
+          border: 1px solid rgba(245, 237, 218, 0.45);
+          color: #F5EDDA;
+          background: rgba(245, 237, 218, 0.08);
+          border-radius: 999px;
+          padding: 8px 20px;
+          font-family: 'DM Sans', sans-serif;
+          font-size: 13px;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+
+        .journal-controls button:hover:not(:disabled) {
+          background: rgba(245, 237, 218, 0.15);
+        }
+
+        .journal-controls button:disabled {
+          opacity: 0.4;
+          cursor: default;
+        }
+
+        .journal-page-indicator {
+          font-family: 'DM Sans', sans-serif;
+          font-size: 12px;
+          color: rgba(245, 237, 218, 0.5);
+          min-width: 80px;
+          text-align: center;
+        }
+
+        .journal-empty {
+          width: min(720px, calc(100vw - 40px));
+          border: 1px solid rgba(245, 237, 218, 0.2);
+          border-radius: 14px;
+          background: rgba(245, 237, 218, 0.06);
+          padding: 32px 24px;
+          text-align: center;
+          color: #F5EDDA;
+        }
+
+        .journal-empty .journal-subheading {
+          color: #F5EDDA;
+          margin-bottom: 10px;
+        }
+      `}</style>
+
+      <button className="journal-close" onClick={() => navigate(-1)}>✕</button>
+
+      {entries.length > 0 ? (
+        <>
+          <div className="flipbook" ref={flipbookRef}>
+            {/* Front cover */}
+            <div className="hard">
+              <span className="cover-symbol">✦</span>
+              <span className="cover-title">Arverié</span>
+              <span className="cover-subtitle">Journal Sessions</span>
+            </div>
+            {/* Inside front cover (blank) */}
+            <div className="hard" />
+
+            {/* Session spreads — left + right page per session */}
+            {entries.flatMap((entry) => [
+              <div className="page" key={`${entry.id}-left`}>
+                <LeftSessionPage entry={entry} />
+              </div>,
+              <div className="page" key={`${entry.id}-right`}>
+                <RightSessionPage entry={entry} />
+              </div>,
+            ])}
+
+            {/* Inside back cover (blank) */}
+            <div className="hard" />
+            {/* Back cover */}
+            <div className="hard">
+              <span className="cover-symbol">✦</span>
+              <span className="back-cover-name">{user?.name || "Arverié"}</span>
+            </div>
+          </div>
+
+          <div className="journal-controls">
+            <button onClick={handlePrev} disabled={!bookReady}>← Prev</button>
+            <span className="journal-page-indicator">
+              {bookReady ? `${currentPage} / ${totalPagesRef.current}` : "…"}
+            </span>
+            <button onClick={handleNext} disabled={!bookReady}>Next →</button>
+          </div>
+        </>
+      ) : (
+        <div className="journal-empty">
+          <h3 className="journal-subheading">No completed sessions yet</h3>
+          <p className="journal-body" style={{ color: "rgba(245,237,218,0.65)", marginTop: 8 }}>
+            Finish a canvas session and your journal pages will appear here.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

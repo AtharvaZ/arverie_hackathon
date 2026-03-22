@@ -195,6 +195,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://localhost:5176",
         "http://localhost:4173",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:4173",
@@ -358,6 +361,8 @@ async def session_intake(
             "themes": result.themes,
             "transcript": safe_transcript,
             "mood_checkin": body.mood_checkin,
+            "guided": bool(body.guided),
+            "guide_theme": body.guide_theme,
             "drawing_prompt": result.drawing_prompt,
             "opening_response": result.opening_response,
             "opening_injected": False,
@@ -418,6 +423,8 @@ async def session_message(
 
         intake = session_intake_data.get(body.session_id, {})
         themes = intake.get("themes", [])
+        guided_mode = bool(body.guided) if body.guided is not None else bool(intake.get("guided"))
+        guide_theme = body.guide_theme or intake.get("guide_theme")
         loop = asyncio.get_event_loop()
         response_text = await loop.run_in_executor(
             None,
@@ -426,6 +433,8 @@ async def session_message(
                 message=safe_message,
                 themes=themes,
                 dialogue_history=body.dialogue_history if isinstance(body.dialogue_history, list) else [],
+                guided_mode=guided_mode,
+                guide_theme=guide_theme,
             ),
         )
         logger.info(f"User message handled for session {body.session_id}")
@@ -497,6 +506,8 @@ async def canvas_snapshot(
         if trigger_result.should_fire:
             intake = session_intake_data.get(body.session_id, {})
             themes = body.intake_themes or intake.get("themes", [])
+            guided_mode = bool(intake.get("guided"))
+            guide_theme = intake.get("guide_theme")
             canvas_summary = {
                 "colors_used": body.snapshot.colors_used_this_window,
                 "elapsed_seconds": body.snapshot.elapsed_seconds,
@@ -513,23 +524,28 @@ async def canvas_snapshot(
                     themes=themes,
                     canvas_summary=canvas_summary,
                     dialogue_history=body.dialogue_history if isinstance(body.dialogue_history, list) else [],
+                    guided_mode=guided_mode,
+                    guide_theme=guide_theme,
                 )
             )
-            processor.reset_after_trigger()
+            processor.reset_after_trigger(trigger_result.dominant_signal)
 
             # Inject into active Hume session if one exists — isolated so errors don't fail the response
             hume = active_hume_sessions.get(body.session_id)
+            injection_delivered = True
             if hume:
                 try:
-                    await hume.inject_trigger(response_text)
+                    injection_delivered = await hume.inject_trigger(response_text)
                 except Exception as inject_err:
                     logger.error(f"Hume injection failed (non-fatal): {inject_err}")
+                    injection_delivered = False
 
             logger.info(f"Trigger fired for session {body.session_id}: {trigger_result.dominant_signal}")
             return CanvasSnapshotResponse(
                 triggered=True,
                 response=response_text,
                 trigger_type=trigger_result.dominant_signal,
+                injection_delivered=injection_delivered,
                 flow_intensity=trigger_result.flow_intensity,
             )
 

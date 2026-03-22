@@ -30,6 +30,7 @@ class CanvasEventProcessor:
         self.signal_scores: dict[str, float] = {}
         self.last_trigger_time: float = 0.0
         self.check_in_target: float = random.uniform(CHECK_IN_MIN_SECONDS, CHECK_IN_MAX_SECONDS)
+        self.check_in_due: bool = False
         self.flow_intensity: str = "medium"
         self.stroke_baseline: float = 0.0
         self.baseline_samples: list[float] = []
@@ -48,7 +49,10 @@ class CanvasEventProcessor:
     def should_trigger(self) -> TriggerResult:
         in_cooldown = (time.time() - self.last_trigger_time) < COOLDOWN_SECONDS
         # Timed check-ins should be dependable every 2-3 minutes when not cooling down.
-        if not in_cooldown and self.signal_scores.get("check_in", 0) >= SIGNAL_WEIGHTS["check_in"]:
+        if not in_cooldown and (
+            self.check_in_due
+            or self.signal_scores.get("check_in", 0) >= SIGNAL_WEIGHTS["check_in"]
+        ):
             return TriggerResult(
                 should_fire=True,
                 dominant_signal="check_in",
@@ -73,14 +77,18 @@ class CanvasEventProcessor:
             )
         return TriggerResult(should_fire=False, flow_intensity=self.flow_intensity)
 
-    def reset_after_trigger(self) -> None:
-        # Must reset BOTH signal scores AND last_trigger_time
+    def reset_after_trigger(self, trigger_type: str | None = None) -> None:
+        # Reset per-trigger score and cooldown timestamp.
         self.signal_scores.clear()
         self.last_trigger_time = time.time()
-        self.check_in_target = self._last_elapsed + random.uniform(
-            CHECK_IN_MIN_SECONDS,
-            CHECK_IN_MAX_SECONDS,
-        )
+        # Keep timed check-ins on a stable cadence. Only move the target when the
+        # check-in itself was fired, otherwise frequent non-check triggers can starve it.
+        if (trigger_type or "") == "check_in":
+            self.check_in_due = False
+            self.check_in_target = self._last_elapsed + random.uniform(
+                CHECK_IN_MIN_SECONDS,
+                CHECK_IN_MAX_SECONDS,
+            )
 
     def get_signal_context(self) -> dict:
         return {
@@ -93,11 +101,21 @@ class CanvasEventProcessor:
     def _decay_signals(self) -> None:
         to_delete = []
         for signal in list(self.signal_scores.keys()):
+            if signal == "check_in" and self.check_in_due:
+                continue
             self.signal_scores[signal] *= DECAY_RATE
             if self.signal_scores[signal] < 0.1:
                 to_delete.append(signal)
         for signal in to_delete:
             del self.signal_scores[signal]
+
+    def _append_color_history(self, color: str, elapsed: float) -> None:
+        if not color:
+            return
+        if self.color_history and self.color_history[-1][0] == color:
+            self.color_history[-1] = (color, elapsed)
+            return
+        self.color_history.append((color, elapsed))
 
     def _process_snapshot(self, snapshot: dict) -> None:
         sps = snapshot.get("strokes_per_second", 0.0)
@@ -142,9 +160,14 @@ class CanvasEventProcessor:
         cutoff = elapsed - 60
         self.erase_history = [e for e in self.erase_history if e["timestamp"] > cutoff]
 
-        # Color history — keep last 60 seconds
-        if current_color:
-            self.color_history.append((current_color, elapsed))
+        # Color history — keep last 60 seconds. Prefer the full 7-second color window
+        # so rapid palette changes are not collapsed into a single current color.
+        colors_window = snapshot.get("colors_used_this_window", []) or []
+        if colors_window:
+            for color in colors_window:
+                self._append_color_history(color, elapsed)
+        elif current_color:
+            self._append_color_history(current_color, elapsed)
         self.color_history = [(c, t) for c, t in self.color_history if t > elapsed - 60]
 
         # Quadrant history — keep last 90 seconds
@@ -254,13 +277,10 @@ class CanvasEventProcessor:
 
     def _detect_check_in(self, elapsed: float) -> None:
         """Periodic timed check-in. Fires when elapsed crosses the randomized target."""
-        if elapsed >= self.check_in_target:
+        if elapsed >= self.check_in_target and not self.check_in_due:
+            self.check_in_due = True
             self.signal_scores["check_in"] = (
                 self.signal_scores.get("check_in", 0) + SIGNAL_WEIGHTS["check_in"]
-            )
-            self.check_in_target = elapsed + random.uniform(
-                CHECK_IN_MIN_SECONDS,
-                CHECK_IN_MAX_SECONDS,
             )
 
     def _hsl_delta(self, hex1: str, hex2: str) -> float:

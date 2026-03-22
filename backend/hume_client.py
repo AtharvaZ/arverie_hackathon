@@ -23,6 +23,12 @@ MAX_INJECTION_CHARS = 220
 MAX_WS_AUDIO_B64_CHARS = int(os.getenv("MAX_WS_AUDIO_B64_CHARS", "12000"))
 MAX_WS_AUDIO_PACKETS_PER_SECOND = int(os.getenv("MAX_WS_AUDIO_PACKETS_PER_SECOND", "80"))
 FILLER_INJECTION_PAUSE_SECONDS = float(os.getenv("FILLER_INJECTION_PAUSE_SECONDS", "1.2"))
+RECENT_USER_AUDIO_WINDOW_SECONDS = float(
+    os.getenv("RECENT_USER_AUDIO_WINDOW_SECONDS", "1.4")
+)
+ASSISTANT_SPEAKING_TIMEOUT_SECONDS = float(
+    os.getenv("ASSISTANT_SPEAKING_TIMEOUT_SECONDS", "12.0")
+)
 
 HUME_SYSTEM_PROMPT = """You are Arverie, a quiet drawing companion.
 
@@ -61,8 +67,10 @@ class HumeClient:
         self.user_is_speaking: bool = False
         self.injection_queue: list[str] = []
         self.dialogue_history: list[dict] = []
+        self.assistant_is_speaking: bool = False
         self._running: bool = False
         self._last_audio_input_time: float = 0.0
+        self._last_assistant_event_time: float = 0.0
         self._hume_ready_event: asyncio.Event = asyncio.Event()
         self._hume_connected_at: float = 0.0
         self._last_ready_wait_log_at: float = 0.0
@@ -207,7 +215,7 @@ class HumeClient:
             return None
         return {"type": "audio_input", "data": audio_b64}
 
-    async def inject_trigger(self, text: str) -> None:
+    async def inject_trigger(self, text: str) -> bool:
         """
         Inject a Claude trigger response into Hume.
         Ensures Hume is connected first (lazy connect).
@@ -216,27 +224,38 @@ class HumeClient:
         safe_text = self._sanitize_injection_text(text)
         if not safe_text:
             logger.warning(f"Skipped empty injection text for session {self.session_id}")
-            return
+            return False
 
         logger.info(f"[inject] inject_trigger called, hume_ws={'open' if self._hume_is_open() else 'None/closed'}")
         if not await self._ensure_hume_connected():
             logger.error(f"Cannot inject trigger — Hume not connected for session {self.session_id}")
-            return
-        if self.user_is_speaking:
+            return False
+        if not await self.wait_until_ready(timeout_seconds=1.5):
             self.injection_queue.append(safe_text)
-            logger.info(f"Queued injection (user speaking): {safe_text[:50]}")
-            return
-        await self._send_injection(safe_text)
+            logger.info("Queued injection while waiting for Hume readiness")
+            return True
+        recently_heard_user = (
+            self._last_audio_input_time > 0
+            and (time.time() - self._last_audio_input_time) < RECENT_USER_AUDIO_WINDOW_SECONDS
+        )
+        if self.user_is_speaking or self.assistant_is_speaking or recently_heard_user:
+            self.injection_queue.append(safe_text)
+            logger.info(f"Queued injection (voice channel busy): {safe_text[:50]}")
+            return True
+        return await self._send_injection(safe_text)
 
-    async def _send_injection(self, text: str) -> None:
+    async def _send_injection(self, text: str) -> bool:
         """Send assistant_input message to Hume."""
         if self._hume_is_open():
             try:
                 msg = {"type": "assistant_input", "text": text}
                 await self.hume_ws.send(json.dumps(msg))
                 logger.info(f"Injected trigger to Hume: {text[:50]}")
+                return True
             except Exception as e:
                 logger.error(f"Hume injection failed: {e}")
+                return False
+        return False
 
     async def _proxy_client_to_hume(self) -> None:
         """Forward raw WebSocket messages from the frontend to Hume.
@@ -317,11 +336,30 @@ class HumeClient:
             )
             self.user_is_speaking = False
 
+    def _check_assistant_speaking_timeout(self) -> None:
+        if not self.assistant_is_speaking:
+            return
+        if self._last_assistant_event_time == 0.0:
+            return
+        if time.time() - self._last_assistant_event_time > ASSISTANT_SPEAKING_TIMEOUT_SECONDS:
+            logger.warning(
+                "assistant_is_speaking timeout (%.1fs) for session %s — resetting",
+                ASSISTANT_SPEAKING_TIMEOUT_SECONDS,
+                self.session_id,
+            )
+            self.assistant_is_speaking = False
+            self._last_assistant_event_time = 0.0
+
     async def _flush_injection_queue(self) -> None:
         """Drain injection_queue, sending each item to Hume in order."""
+        if not await self.wait_until_ready(timeout_seconds=1.0):
+            return
         while self.injection_queue:
             queued = self.injection_queue.pop(0)
-            await self._send_injection(queued)
+            sent = await self._send_injection(queued)
+            if not sent:
+                self.injection_queue.insert(0, queued)
+                break
 
     async def _proxy_hume_to_client(self) -> None:
         """Forward raw WebSocket messages from Hume to the frontend.
@@ -358,6 +396,7 @@ class HumeClient:
                         # Check timeout on every message so a stalled speaking flag
                         # gets cleared even when the Hume loop is actively running.
                         self._check_speaking_timeout()
+                        self._check_assistant_speaking_timeout()
 
                         if self.client_ws:
                             if isinstance(message, bytes):
@@ -370,6 +409,7 @@ class HumeClient:
                                     # Use explicit Hume turn events for speaking state.
                                     if msg_type == "user_interruption":
                                         self.user_is_speaking = True
+                                        self.assistant_is_speaking = False
                                     if msg_type == "user_message":
                                         message_text = ""
                                         if isinstance(data.get("message"), dict):
@@ -383,10 +423,16 @@ class HumeClient:
                                         else:
                                             self._suppress_injections_until = 0.0
                                         self.user_is_speaking = False
+                                    if msg_type == "assistant_message":
+                                        self.assistant_is_speaking = True
+                                        self._last_assistant_event_time = time.time()
                                     if msg_type == "assistant_end":
                                         self.user_is_speaking = False
+                                        self.assistant_is_speaking = False
+                                        self._last_assistant_event_time = 0.0
                                     if (
                                         not self.user_is_speaking
+                                        and not self.assistant_is_speaking
                                         and self.injection_queue
                                         and time.time() >= self._suppress_injections_until
                                     ):
@@ -400,8 +446,10 @@ class HumeClient:
                 else:
                     # Hume not yet connected — also check timeout in the polling branch
                     self._check_speaking_timeout()
+                    self._check_assistant_speaking_timeout()
                     if (
                         not self.user_is_speaking
+                        and not self.assistant_is_speaking
                         and self.injection_queue
                         and time.time() >= self._suppress_injections_until
                     ):

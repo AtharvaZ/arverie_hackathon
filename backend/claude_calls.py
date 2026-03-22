@@ -76,6 +76,32 @@ def _sanitize_trigger_response(text: str) -> str:
     return cleaned or "something about what you're doing right now..."
 
 
+def _enforce_trigger_shape(trigger_type: str, text: str, guided_mode: bool = False) -> str:
+    """Enforce concrete response form per trigger so delivery stays meaningful."""
+    cleaned = _sanitize_trigger_response(text)
+
+    if guided_mode:
+        # Guided mode should feel like gentle direction, not a repeated Q&A loop.
+        if "?" in cleaned:
+            cleaned = cleaned.replace("?", ".").strip()
+        if trigger_type == "check_in" and (not cleaned or cleaned.endswith(".")):
+            return "stay with this area for one breath, then add one small mark where your eye returns."
+        return cleaned
+
+    if trigger_type == "check_in":
+        if "?" not in cleaned:
+            return "how is this part of the drawing feeling for you right now?"
+        return cleaned
+
+    if trigger_type in {"erase_loop", "erase_localized"}:
+        # Avoid repetitive phrasing that sounds robotic.
+        too_generic = "keep going back to that spot" in cleaned.lower()
+        if too_generic:
+            return "i notice your hand keeps returning to this area, what feels important about it right now?"
+
+    return cleaned
+
+
 def call_intake(transcript: str, mood: str) -> IntakeResponse:
     """
     Call 1 — Extract emotional themes, optional drawing prompt, and
@@ -138,6 +164,8 @@ def call_trigger_response(
     themes: list[str],
     canvas_summary: dict,
     dialogue_history: list[dict],
+    guided_mode: bool = False,
+    guide_theme: str | None = None,
 ) -> str:
     """
     Call 2 — Generate a single gentle spoken response when a canvas signal fires.
@@ -157,15 +185,26 @@ CURRENT TRIGGER:
 - Type: {trigger_type}
 - Detail: {safe_trigger_detail}
 
+SESSION MODE:
+- guided_mode: {guided_mode}
+- guide_theme: {guide_theme or 'none'}
+
 Generate ONE gentle spoken cue (1 sentence preferred, max 2).
 
 Trigger style guide:
-- If trigger type is check_in: ask one curious, specific question about what they are doing now.
+- If guided_mode is true: provide a single concrete micro-direction as a guide, not a question.
+- If guided_mode is false and trigger type is check_in: ask one curious, specific question about what they are doing now.
 - If trigger type is erase_loop or erase_localized: softly notice revisiting or reworking, without interpretation.
 - If trigger type is stroke_surge: notice momentum or energy in marks, without labeling emotion.
 - If trigger type is inactivity: notice the pause and invite a tiny check-in.
 - If trigger type is color_shift: notice change in palette plainly.
 - If trigger type is quadrant_focus: notice attention staying in one area.
+
+Wording constraints:
+- Never use the phrase "you keep going back to that spot".
+- For erase_loop and erase_localized, vary language naturally across sessions.
+- For guided_mode=true, do not ask questions and do not end with a question mark.
+- For guided_mode=false with check_in, always end with one clear question mark.
 
 Rules:
 - Ground every response in either CURRENT TRIGGER detail or exact user words from conversation.
@@ -197,7 +236,7 @@ Good examples:
                 }
             ],
         )
-        return _sanitize_trigger_response(_extract_text(result))
+        return _enforce_trigger_shape(trigger_type, _extract_text(result), guided_mode)
     except Exception as e:
         logger.error(f"Claude trigger response call failed: {e}")
         return "something about what you're doing right now..."
@@ -308,6 +347,8 @@ def call_user_message(
     message: str,
     themes: list[str],
     dialogue_history: list[dict],
+    guided_mode: bool = False,
+    guide_theme: str | None = None,
 ) -> str:
     """
     Call 5 — Respond to a direct text message from the user during the drawing session.
@@ -318,6 +359,7 @@ def call_user_message(
     system = f"""You are Arverie, a warm reflective companion sitting alongside someone while they draw.
 SESSION THEMES: {themes}
 CONVERSATION SO FAR: {json.dumps(normalized_history, ensure_ascii=True)}
+SESSION MODE: guided_mode={guided_mode}, guide_theme={guide_theme or 'none'}
 
 The user has just typed a message to you. Respond with warmth in 1-2 sentences.
 
@@ -326,6 +368,7 @@ Rules:
 - Keep language plain and spoken - not clinical, not poetic to excess.
 - Mirror the user's own words when natural.
 - Never interpret or explain meaning. Never say "this means...".
+- If guided_mode is true: do not ask follow-up questions; provide one small, actionable guidance step.
 - No stage directions, brackets, quotation marks, or emojis.
 - Output only the words of your response. Nothing else."""
 

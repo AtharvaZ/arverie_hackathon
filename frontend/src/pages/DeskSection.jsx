@@ -899,81 +899,6 @@ const DESK_CSS = `
 .stat-bars { display:flex; gap:2px; align-items:flex-end; height:22px; margin-top:6px; position:relative; z-index:1; }
 .stat-bar  { flex:1; border-radius:1px 1px 0 0; }
 
-/* ── Journal Opening Overlay ── */
-.journal-overlay {
-  position: fixed; inset: 0; z-index: 100;
-  background: rgba(26,56,59,0.8);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  display: flex; align-items: center; justify-content: center;
-}
-
-.book-anim-wrapper {
-  position: relative;
-  width: 160px; height: 240px;
-  perspective: 1200px;
-  animation: bookEnlarge 2.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-}
-
-@keyframes bookEnlarge {
-  0% { transform: scale(0.5); opacity: 0; }
-  12% { transform: scale(1.2); opacity: 1; }
-  85% { transform: scale(1.8); opacity: 1; }
-  100% { transform: scale(3.5); opacity: 0; }
-}
-
-.book-part {
-  position: absolute; inset: 0;
-  transform-style: preserve-3d;
-  transform-origin: left center;
-}
-
-.book-cover {
-  z-index: 10;
-  background: linear-gradient(148deg,#C4916A,#A87050,#8A5A38);
-  border-radius: 2px 6px 6px 2px;
-  box-shadow: inset 4px 0 10px rgba(0,0,0,0.1), 5px 5px 15px rgba(0,0,0,0.4);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-  animation: coverFlip 2s 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-.book-cover::before {
-  content: ''; position: absolute; inset: 8px;
-  border: .75px solid rgba(240,205,130,.4); border-radius: 1px 5px 5px 1px;
-}
-
-.book-back {
-  z-index: 1;
-  background: linear-gradient(148deg,#8A5A38,#A87050);
-  border-radius: 2px 6px 6px 2px;
-  box-shadow: 10px 20px 40px rgba(0,0,0,0.5);
-}
-
-.book-page {
-  background: #F8F0DA;
-  border-radius: 2px 4px 4px 2px;
-  box-shadow: inset 2px 0 5px rgba(0,0,0,0.05);
-}
-
-.bp1 { z-index: 8; animation: pageFlip 1.5s 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-.bp2 { z-index: 7; animation: pageFlip 1.5s 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-.bp3 { z-index: 6; animation: pageFlip 1.5s 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-.bp-base { z-index: 5; }
-
-@keyframes coverFlip {
-  0% { transform: rotateY(0deg); }
-  100% { transform: rotateY(-160deg); }
-}
-
-@keyframes pageFlip {
-  0% { transform: rotateY(0deg); }
-  100% { transform: rotateY(-155deg); }
-}
-
-.book-orn { font-size: 20px; color: rgba(245,215,140,.9); }
-.book-name { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 600; color: #FFF4E0; letter-spacing: 3px; }
-.book-rule { width: 40px; height: 1px; background: linear-gradient(to right,transparent,rgba(245,215,140,.6),transparent); }
-.book-sub { font-size: 10px; color: rgba(255,235,185,.8); letter-spacing: 3px; text-transform: uppercase; }
-
 @media (max-width: 1200px) {
   .room-wall {
     --window-width-base: 392px;
@@ -1076,7 +1001,6 @@ export default function DeskSection({
   const [showModal, setShowModal] = useState(false);
   const [modalName, setModalName] = useState("");
   const [pendingAction, setPendingAction] = useState(null);
-  const [isOpeningJournal, setIsOpeningJournal] = useState(false);
 
   // scroll animation refs — no state to avoid re-renders
   const sectionRef = useRef(null);
@@ -1290,10 +1214,7 @@ export default function DeskSection({
   function dispatch(action) {
     if (action === "session") navigate("/session");
     if (action === "journal") {
-      setIsOpeningJournal(true);
-      setTimeout(() => {
-        navigate("/journal");
-      }, 2500);
+      navigate("/journal");
     }
   }
 
@@ -1853,51 +1774,6 @@ export default function DeskSection({
                 maybe later
               </div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {isOpeningJournal && (
-          <motion.div
-            className="journal-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="book-anim-wrapper">
-              {/* Back cover (shadow layer) */}
-              <div className="book-part book-back"></div>
-
-              {/* Base stack of pages */}
-              <div
-                className="book-part book-page bp-base"
-                style={{ right: "-6px", top: "4px", bottom: "4px" }}
-              ></div>
-
-              {/* Flipping pages */}
-              <div
-                className="book-part book-page bp3"
-                style={{ right: "-5px", top: "5px", bottom: "5px" }}
-              ></div>
-              <div
-                className="book-part book-page bp2"
-                style={{ right: "-3px", top: "6px", bottom: "6px" }}
-              ></div>
-              <div
-                className="book-part book-page bp1"
-                style={{ right: "-1px", top: "7px", bottom: "7px" }}
-              ></div>
-
-              {/* The front cover flipping open */}
-              <div className="book-part book-cover">
-                <div className="book-orn">✦</div>
-                <div className="book-name">Arverié</div>
-                <div className="book-rule" />
-                <div className="book-sub">journal</div>
-              </div>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>

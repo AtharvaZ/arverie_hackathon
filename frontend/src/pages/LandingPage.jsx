@@ -95,7 +95,7 @@ function Footer() {
             textTransform: "uppercase",
           }}
         >
-          The Arverie Flow
+          The Arverié Flow
         </span>
       </motion.div>
       <h2
@@ -135,7 +135,7 @@ function Footer() {
           gap: "24px",
           maxWidth: "1100px",
           width: "100%",
-          alignItems: "flex-start",
+          alignItems: "stretch",
         }}
       >
         {footerCards.map((item, i) => (
@@ -153,7 +153,7 @@ function Footer() {
                 "0 14px 46px rgba(0,0,0,0.4), 0 0 22px rgba(134, 244, 164, 0.24)",
             }}
             style={{
-              transform: `translateY(${item.offset}px)`,
+              transform: "none",
               background:
                 "linear-gradient(165deg, rgba(35, 78, 49, 0.32), rgba(20, 50, 31, 0.38))",
               border: "1px solid rgba(166, 244, 185, 0.24)",
@@ -162,6 +162,7 @@ function Footer() {
               boxShadow:
                 "0 10px 40px rgba(0,0,0,0.34), inset 0 1px 0 rgba(200, 255, 214, 0.1)",
               flex: 1,
+              minHeight: "420px",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",

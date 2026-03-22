@@ -103,7 +103,7 @@ export default function SummaryPage() {
       ? Array.from(
           new Set([...(session.paintColors || []), ...summaryPalette]),
         ).slice(0, 5)
-      : ["#2d4a3e", "#7a3b2e", "#b07a3a"];
+      : [];
 
   // Typewriter effect
   useEffect(() => {
@@ -273,18 +273,32 @@ export default function SummaryPage() {
               COLORS EXPLORED
             </span>
             <div style={{ display: "flex", gap: "8px" }}>
-              {colorsUsed.map((c, i) => (
-                <div
-                  key={i}
+              {colorsUsed.length > 0 ? (
+                colorsUsed.map((c, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: "20px",
+                      height: "20px",
+                      borderRadius: "50%",
+                      background: c,
+                      border: "1px solid var(--border)",
+                    }}
+                  />
+                ))
+              ) : (
+                <span
                   style={{
-                    width: "20px",
-                    height: "20px",
-                    borderRadius: "50%",
-                    background: c,
-                    border: "1px solid var(--border)",
+                    fontFamily: "Cinzel, serif",
+                    fontSize: "9px",
+                    letterSpacing: "0.08em",
+                    color: "var(--text-muted)",
+                    textTransform: "uppercase",
                   }}
-                />
-              ))}
+                >
+                  no colors captured
+                </span>
+              )}
             </div>
           </div>
 

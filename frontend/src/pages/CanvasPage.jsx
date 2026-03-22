@@ -37,6 +37,7 @@ function AIPanel({
   interactionMode,
 }) {
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
   const [inputValue, setInputValue] = useState("");
   const [sending, setSending] = useState(false);
   const isVoiceMode = interactionMode !== "text";
@@ -55,6 +56,7 @@ function AIPanel({
       await onSendMessage?.(text);
     } finally {
       setSending(false);
+      requestAnimationFrame(() => inputRef.current?.focus());
     }
   };
 
@@ -202,10 +204,9 @@ function AIPanel({
                 {messages.length === 0 ? (
                   <p
                     style={{
-                      fontFamily: "IM Fell English, serif",
-                      fontStyle: "italic",
-                      fontSize: "18px",
-                      lineHeight: 1.75,
+                      fontFamily: "'Abhaya Libre', serif",
+                      fontSize: "20px",
+                      lineHeight: 1.7,
                       color: "rgba(80,55,30,0.45)",
                       textAlign: "center",
                       padding: "0 8px",
@@ -235,10 +236,9 @@ function AIPanel({
                     >
                       <p
                         style={{
-                          fontFamily: "IM Fell English, serif",
-                          fontStyle: "italic",
-                          fontSize: "17px",
-                          lineHeight: 1.6,
+                          fontFamily: "'Abhaya Libre', serif",
+                          fontSize: "20px",
+                          lineHeight: 1.65,
                           color:
                             msg.role === "assistant"
                               ? "rgba(80,55,30,0.85)"
@@ -251,7 +251,7 @@ function AIPanel({
                         <p
                           style={{
                             fontFamily: "Cinzel, serif",
-                            fontSize: "10px",
+                            fontSize: "11px",
                             color: "rgba(80,55,30,0.3)",
                             marginTop: "4px",
                           }}
@@ -276,6 +276,7 @@ function AIPanel({
                   }}
                 >
                   <input
+                    ref={inputRef}
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
@@ -284,8 +285,9 @@ function AIPanel({
                     style={{
                       flex: 1,
                       padding: "9px 12px",
-                      fontFamily: "IM Fell English, serif",
-                      fontSize: "15px",
+                      fontFamily: "'Abhaya Libre', serif",
+                      fontSize: "19px",
+                      lineHeight: 1.45,
                       color: "rgba(80,55,30,0.85)",
                       background: "rgba(255,250,235,0.8)",
                       border: "1px solid rgba(200,168,40,0.35)",
@@ -296,6 +298,7 @@ function AIPanel({
                   />
                   <button
                     type="submit"
+                    onMouseDown={(e) => e.preventDefault()}
                     disabled={!inputValue.trim() || sending}
                     style={{
                       width: "36px",
@@ -426,6 +429,8 @@ export default function CanvasPage() {
           session.sessionId,
           trimmed,
           dialogueRef.current,
+          session.guided,
+          session.guideTheme,
         );
         addMessage({
           role: "assistant",
@@ -437,7 +442,7 @@ export default function CanvasPage() {
         console.error("[CanvasPage] sendMessage failed:", err);
       }
     },
-    [addMessage, session.sessionId],
+    [addMessage, session.sessionId, session.guided, session.guideTheme],
   );
 
   const {
@@ -530,13 +535,18 @@ export default function CanvasPage() {
           const elapsed = snapshot.elapsed_seconds;
           const mm = String(Math.floor(elapsed / 60)).padStart(1, "0");
           const ss = String(Math.floor(elapsed % 60)).padStart(2, "0");
+          const voiceConnected = isVoiceMode && isConnected;
+          const shouldRenderDirectly =
+            !voiceConnected || result.injection_delivered === false;
           const entry = {
             role: "assistant",
             content: result.response,
             timestamp: `${mm}:${ss}`,
             trigger: result.trigger_type || null,
           };
-          setMessages((prev) => [...prev, entry]);
+          if (shouldRenderDirectly) {
+            setMessages((prev) => [...prev, entry]);
+          }
           // Auto-open AIPanel on first trigger
           setAiOpen(true);
         }
@@ -546,7 +556,7 @@ export default function CanvasPage() {
     }, SNAPSHOT_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [session.sessionId, session.themes]);
+  }, [session.sessionId, session.themes, isVoiceMode, isConnected]);
 
   // ── Idle detection ──
   const resetIdleTimer = useCallback(() => {
@@ -659,6 +669,8 @@ export default function CanvasPage() {
       w,
       h,
       sessionStartRef.current,
+      color,
+      session.paintColors,
     );
 
     // Always store drawing locally for fallback

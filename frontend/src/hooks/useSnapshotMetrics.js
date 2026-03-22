@@ -181,6 +181,8 @@ export function buildCanvasSummary(
   canvasWidth,
   canvasHeight,
   sessionStartMs,
+  activeColor = null,
+  selectedColors = [],
 ) {
   const totalSeconds = (Date.now() - sessionStartMs) / 1000;
   const strokes = behaviorData.strokes || [];
@@ -189,10 +191,17 @@ export function buildCanvasSummary(
 
   // All unique colors
   const allColors = Array.from(
-    new Set([
-      ...colorChanges.map((c) => c.to),
-      ...strokes.map((s) => s.color).filter(Boolean),
-    ]),
+    new Set(
+      [
+        ...(Array.isArray(selectedColors) ? selectedColors : []),
+        ...colorChanges.map((c) => c.to),
+        ...strokes.map((s) => s.color).filter(Boolean),
+        activeColor,
+      ]
+        .filter((token) => typeof token === "string")
+        .map((token) => token.trim())
+        .filter((token) => token.length > 0 && token !== "unknown"),
+    ),
   );
 
   // Erasure clusters — group by quadrant label

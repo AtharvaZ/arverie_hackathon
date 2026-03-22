@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import time
 import types
 import unittest
 
@@ -71,6 +72,61 @@ class HumeClientProxyTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(
             client._build_hume_audio_input({"type": "audio_input", "data": oversized})
         )
+
+    async def test_inject_trigger_returns_false_when_hume_unavailable(self) -> None:
+        client = HumeClient("session-4")
+
+        async def _ensure_connected() -> bool:
+            return False
+
+        client._ensure_hume_connected = _ensure_connected  # type: ignore[method-assign]
+
+        delivered = await client.inject_trigger("hello")
+
+        self.assertFalse(delivered)
+        self.assertEqual(client.injection_queue, [])
+
+    async def test_inject_trigger_queues_while_waiting_readiness(self) -> None:
+        client = HumeClient("session-5")
+        client.hume_ws = _FakeHumeWS()
+
+        async def _ensure_connected() -> bool:
+            return True
+
+        async def _wait_until_ready(timeout_seconds: float = 4.0) -> bool:
+            return False
+
+        client._ensure_hume_connected = _ensure_connected  # type: ignore[method-assign]
+        client.wait_until_ready = _wait_until_ready  # type: ignore[method-assign]
+
+        delivered = await client.inject_trigger("hello there")
+
+        self.assertTrue(delivered)
+        self.assertEqual(client.injection_queue, ["hello there"])
+
+    async def test_flush_queue_keeps_items_when_not_ready(self) -> None:
+        client = HumeClient("session-6")
+        client.hume_ws = _FakeHumeWS()
+        client.injection_queue = ["queued message"]
+
+        async def _wait_until_ready(timeout_seconds: float = 4.0) -> bool:
+            return False
+
+        client.wait_until_ready = _wait_until_ready  # type: ignore[method-assign]
+
+        await client._flush_injection_queue()
+
+        self.assertEqual(client.injection_queue, ["queued message"])
+
+    async def test_assistant_timeout_resets_speaking_flag(self) -> None:
+        client = HumeClient("session-7")
+        client.assistant_is_speaking = True
+        client._last_assistant_event_time = time.time() - 30
+
+        client._check_assistant_speaking_timeout()
+
+        self.assertFalse(client.assistant_is_speaking)
+        self.assertEqual(client._last_assistant_event_time, 0.0)
 
 
 if __name__ == "__main__":

@@ -28,6 +28,8 @@ class IntakeRequest(BaseModel):
     session_id: str
     transcript: str = Field(min_length=1, max_length=6000)
     mood_checkin: str = Field(min_length=1, max_length=120)
+    guided: Optional[bool] = None
+    guide_theme: Optional[str] = None
 
 
 class IntakeResponse(BaseModel):
@@ -77,6 +79,7 @@ class CanvasSnapshotResponse(BaseModel):
     triggered: bool
     response: Optional[str]
     trigger_type: Optional[str] = None
+    injection_delivered: Optional[bool] = None
     flow_intensity: str = "medium"
 
 
@@ -111,6 +114,8 @@ class UserMessageRequest(BaseModel):
     session_id: str
     message: str = Field(min_length=1, max_length=1200)
     dialogue_history: list[dict] = Field(default_factory=list)
+    guided: Optional[bool] = None
+    guide_theme: Optional[str] = None
 
 
 class UserMessageResponse(BaseModel):

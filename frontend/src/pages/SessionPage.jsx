@@ -101,7 +101,13 @@ export default function SessionPage() {
         parts.length > 0 ? parts.join(" ") : `I'm feeling ${mood} today.`;
 
       // 3. Send intake → get themes, drawing_prompt, opening_response
-      const intake = await api.sendIntake(session_id, transcript, mood);
+      const intake = await api.sendIntake(
+        session_id,
+        transcript,
+        mood,
+        isGuided,
+        isGuided ? guideTheme : null,
+      );
 
       // 4. Store in context
       setSession((s) => ({

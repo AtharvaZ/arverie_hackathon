@@ -62,7 +62,13 @@ export const api = {
     }),
 
   // POST /session/intake — extracts themes from text, returns { themes, drawing_prompt, opening_response }
-  sendIntake: (sessionId, transcript, moodCheckin) =>
+  sendIntake: (
+    sessionId,
+    transcript,
+    moodCheckin,
+    guided = null,
+    guideTheme = null,
+  ) =>
     request(
       "/session/intake",
       {
@@ -71,6 +77,8 @@ export const api = {
           session_id: sessionId,
           transcript,
           mood_checkin: moodCheckin,
+          guided,
+          guide_theme: guideTheme,
         }),
       },
       "session",
@@ -142,7 +150,13 @@ export const api = {
     ),
 
   // POST /session/message — direct text message to Arverie during canvas session
-  sendMessage: (sessionId, message, dialogueHistory) =>
+  sendMessage: (
+    sessionId,
+    message,
+    dialogueHistory,
+    guided = null,
+    guideTheme = null,
+  ) =>
     request(
       "/session/message",
       {
@@ -151,6 +165,8 @@ export const api = {
           session_id: sessionId,
           message,
           dialogue_history: dialogueHistory,
+          guided,
+          guide_theme: guideTheme,
         }),
       },
       "session",
