@@ -473,10 +473,18 @@ export default function CanvasPage() {
   // Connect Hume on mount if we have a sessionId
   useEffect(() => {
     if (isVoiceMode && session.sessionId) {
+      const wsStrict = (session.wsAuthMode || "compat") === "strict";
       api
         .getWsToken(session.sessionId)
         .then(({ ws_token }) => connectHume(session.sessionId, ws_token))
         .catch((err) => {
+          if (wsStrict) {
+            console.error(
+              "[CanvasPage] WS token request failed in strict mode; aborting fallback",
+              err,
+            );
+            throw err;
+          }
           console.warn(
             "[CanvasPage] WS token request failed, trying compatibility mode",
             err,

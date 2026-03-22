@@ -197,6 +197,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:4173",
         "http://127.0.0.1:5173",
+        "http://127.0.0.1:4173",
         *_extra_origins,
     ],
     allow_credentials=True,
@@ -331,6 +332,7 @@ async def start_session(body: StartSessionRequest) -> StartSessionResponse:
             session_token=session_token,
             user_token=user_token,
             auth_mode=AUTH_ENFORCEMENT_MODE,
+            ws_auth_mode=WS_AUTH_ENFORCEMENT_MODE,
         )
     except Exception as e:
         logger.error(f"Failed to start session: {e}")

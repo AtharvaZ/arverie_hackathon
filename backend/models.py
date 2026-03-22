@@ -21,6 +21,7 @@ class StartSessionResponse(BaseModel):
     session_token: str
     user_token: str
     auth_mode: str
+    ws_auth_mode: str
 
 
 class IntakeRequest(BaseModel):

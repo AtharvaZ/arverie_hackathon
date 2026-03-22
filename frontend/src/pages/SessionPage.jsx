@@ -87,9 +87,8 @@ export default function SessionPage() {
 
     try {
       // 1. Start session → get session_id
-      const { session_id, session_token, user_token } = await api.startSession(
-        session.userId,
-      );
+      const { session_id, session_token, user_token, auth_mode, ws_auth_mode } =
+        await api.startSession(session.userId);
       api.setAuthTokens({ sessionToken: session_token, userToken: user_token });
 
       // 2. Build intake transcript
@@ -111,6 +110,8 @@ export default function SessionPage() {
         mood,
         moodColor,
         interactionMode: assistantMode,
+        authMode: auth_mode || "compat",
+        wsAuthMode: ws_auth_mode || "compat",
         guided: isGuided,
         guideTheme: isGuided ? guideTheme : null,
         intakeText: transcript,
