@@ -911,11 +911,42 @@ const DESK_CSS = `
 .stat-bars { display:flex; gap:2px; align-items:flex-end; height:22px; margin-top:6px; position:relative; z-index:1; }
 .stat-bar  { flex:1; border-radius:1px 1px 0 0; }
 
+@media (max-width: 1360px) {
+  .desk-wrap {
+    width:min(92vw, 860px);
+    height:430px;
+    transform:perspective(960px) rotateX(17deg) rotateZ(0deg) scale(0.74);
+  }
+  .palette-cards {
+    top:43%;
+    left:2%;
+  }
+  .sp-back,
+  .sp-front {
+    right:2%;
+    width:19%;
+  }
+}
+
 @media (max-width: 1200px) {
+  .desk-wrap {
+    width:min(94vw, 780px);
+    height:410px;
+    transform:perspective(920px) rotateX(17deg) rotateZ(0deg) scale(0.71);
+  }
   .room-wall {
     --window-width-base: 392px;
     --window-height-ratio: 0.602;
     --window-gap: 42px;
+  }
+  .palette-cards {
+    top:46%;
+    left:2%;
+  }
+  .sp-back,
+  .sp-front {
+    right:2%;
+    width:20%;
   }
   .room-art {
     left:2.5%;
@@ -934,6 +965,10 @@ const DESK_CSS = `
 }
 
 @media (max-width: 900px) {
+  .palette-cards,
+  .stat-paper {
+    display:none;
+  }
   .room-wall {
     --window-top: 13%;
     --window-width-base: min(43vw, 268px);

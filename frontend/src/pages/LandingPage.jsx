@@ -27,7 +27,7 @@ const prefersReduced =
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ─── Footer ──────────────────────────────────────────────────────────────────
-function Footer({ enableInteractivity }) {
+function Footer({ enableInteractivity, isCompactLayout }) {
   const footerCards = [
     {
       icon: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z",
@@ -60,7 +60,7 @@ function Footer({ enableInteractivity }) {
       id="landing-footer"
       style={{
         background: "transparent",
-        padding: "120px 48px 160px",
+        padding: isCompactLayout ? "104px 24px 132px" : "120px 48px 160px",
         position: "relative",
         zIndex: 10,
         display: "flex",
@@ -103,12 +103,13 @@ function Footer({ enableInteractivity }) {
           fontFamily: "'Cormorant Garamond', serif",
           fontSize: "clamp(28px, 4vw, 48px)",
           fontStyle: "italic",
-          letterSpacing: "5px",
+          letterSpacing: isCompactLayout ? "3px" : "5px",
           color: "#D8F4DD",
           textShadow:
             "0 2px 20px rgba(0,0,0,0.68), 0 0 36px rgba(92, 198, 126, 0.26)",
           marginBottom: "18px",
           textAlign: "center",
+          padding: isCompactLayout ? "0 8px" : 0,
         }}
       >
         A Journey from Expression to Reflection
@@ -132,6 +133,8 @@ function Footer({ enableInteractivity }) {
         style={{
           display: "flex",
           flexDirection: "row",
+          flexWrap: "wrap",
+          justifyContent: "center",
           gap: "24px",
           maxWidth: "1100px",
           width: "100%",
@@ -165,7 +168,9 @@ function Footer({ enableInteractivity }) {
               padding: "40px 32px",
               boxShadow:
                 "0 10px 40px rgba(0,0,0,0.34), inset 0 1px 0 rgba(200, 255, 214, 0.1)",
-              flex: 1,
+              flex: "1 1 300px",
+              maxWidth: isCompactLayout ? "480px" : "none",
+              minWidth: 0,
               minHeight: "420px",
               display: "flex",
               flexDirection: "column",
@@ -321,10 +326,16 @@ export default function LandingPage() {
   const [isMobileViewport, setIsMobileViewport] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false,
   );
+  const [isCompactViewport, setIsCompactViewport] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 1200 : false,
+  );
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
   useEffect(() => {
-    const onResize = () => setIsMobileViewport(window.innerWidth < 768);
+    const onResize = () => {
+      setIsMobileViewport(window.innerWidth < 768);
+      setIsCompactViewport(window.innerWidth < 1200);
+    };
     onResize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -941,8 +952,11 @@ export default function LandingPage() {
               ref={titleRef}
               style={{
                 display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "center",
                 alignItems: "baseline",
                 gap: "0.04em",
+                rowGap: "6px",
                 marginTop: "10px",
                 perspective: "600px",
                 transformStyle: "preserve-3d",
@@ -956,7 +970,11 @@ export default function LandingPage() {
                     fontSize: isMobile ? "34px" : "clamp(34px, 4.8vw, 52px)",
                     fontWeight: 400,
                     color: "#F5EFE0",
-                    letterSpacing: "0.22em",
+                    letterSpacing: isMobile
+                      ? "0.14em"
+                      : isCompactViewport
+                        ? "0.17em"
+                        : "0.22em",
                     display: "inline-block",
                     willChange: "transform, opacity",
                   }}
@@ -1160,7 +1178,10 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-        <Footer enableInteractivity={!isMobileViewport} />
+        <Footer
+          enableInteractivity={!isMobileViewport}
+          isCompactLayout={isCompactViewport}
+        />
         <div
           style={{
             opacity: showLowerSections ? 1 : 0,
