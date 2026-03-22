@@ -73,6 +73,17 @@ export const api = {
       }),
     }),
 
+  // POST /session/message — direct text message to Arverié during canvas session
+  sendMessage: (sessionId, message, dialogueHistory) =>
+    request('/session/message', {
+      method: 'POST',
+      body: JSON.stringify({
+        session_id: sessionId,
+        message,
+        dialogue_history: dialogueHistory,
+      }),
+    }),
+
   // GET /sessions/{user_id} — returns last 7 sessions
   getSessions: (userId) => request(`/sessions/${userId}`),
 }

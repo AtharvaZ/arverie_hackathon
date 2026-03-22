@@ -14,12 +14,29 @@ const SNAPSHOT_INTERVAL_MS = 7000
 
 // ─── AI Companion Panel ──────────────────────────────────────────────────────
 
-function AIPanel({ open, onToggle, messages, isConnected, isSpeaking }) {
+function AIPanel({ open, onToggle, messages, isConnected, isSpeaking, onSendMessage, isMicActive, onToggleMic }) {
   const messagesEndRef = useRef(null)
+  const [inputValue, setInputValue] = useState('')
+  const [sending, setSending] = useState(false)
+  const inputRef = useRef(null)
 
   useEffect(() => {
     if (open) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, open])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    const text = inputValue.trim()
+    if (!text || sending) return
+    setInputValue('')
+    setSending(true)
+    try {
+      await onSendMessage(text)
+    } finally {
+      setSending(false)
+      inputRef.current?.focus()
+    }
+  }
 
   return (
     <div style={{ position: 'relative', display: 'flex', height: '100%' }}>
@@ -140,6 +157,77 @@ function AIPanel({ open, onToggle, messages, isConnected, isSpeaking }) {
                 )}
                 <div ref={messagesEndRef} />
               </div>
+
+              {/* Text input row */}
+              <form
+                onSubmit={handleSubmit}
+                style={{
+                  display: 'flex', gap: '6px', paddingTop: '10px',
+                  borderTop: '1px solid rgba(200,168,40,0.2)',
+                }}
+              >
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Write to Arverié..."
+                  disabled={sending}
+                  style={{
+                    flex: 1, padding: '7px 10px',
+                    fontFamily: 'IM Fell English, serif', fontSize: '13px',
+                    color: 'rgba(80,55,30,0.85)',
+                    background: 'rgba(255,250,235,0.8)',
+                    border: '1px solid rgba(200,168,40,0.35)',
+                    borderRadius: '6px', outline: 'none',
+                    opacity: sending ? 0.6 : 1,
+                  }}
+                />
+                {/* Mic toggle */}
+                <button
+                  type="button"
+                  onClick={onToggleMic}
+                  title={isMicActive ? 'Mute mic' : 'Unmute mic'}
+                  style={{
+                    width: '32px', height: '32px', flexShrink: 0,
+                    background: isMicActive ? 'rgba(200,160,40,0.18)' : 'rgba(80,55,30,0.06)',
+                    border: `1px solid ${isMicActive ? 'rgba(200,160,40,0.5)' : 'rgba(80,55,30,0.2)'}`,
+                    borderRadius: '6px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <rect x="4" y="1" width="6" height="8" rx="3"
+                      fill={isMicActive ? '#c8a040' : 'rgba(80,55,30,0.35)'} />
+                    <path d="M2 7c0 2.76 2.24 5 5 5s5-2.24 5-5"
+                      stroke={isMicActive ? '#c8a040' : 'rgba(80,55,30,0.35)'}
+                      strokeWidth="1.2" strokeLinecap="round" />
+                    <line x1="7" y1="12" x2="7" y2="14"
+                      stroke={isMicActive ? '#c8a040' : 'rgba(80,55,30,0.35)'}
+                      strokeWidth="1.2" strokeLinecap="round" />
+                  </svg>
+                </button>
+                {/* Send button */}
+                <button
+                  type="submit"
+                  disabled={!inputValue.trim() || sending}
+                  style={{
+                    width: '32px', height: '32px', flexShrink: 0,
+                    background: 'rgba(200,160,40,0.15)',
+                    border: '1px solid rgba(200,168,40,0.4)',
+                    borderRadius: '6px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    opacity: !inputValue.trim() || sending ? 0.4 : 1,
+                    transition: 'opacity 0.15s',
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M1 6h10M7 2l4 4-4 4"
+                      stroke="#c8a040" strokeWidth="1.4"
+                      strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </form>
             </motion.div>
           )}
         </AnimatePresence>
@@ -166,7 +254,7 @@ export default function CanvasPage() {
   const [color,   setColor]   = useState('#1d1d1d')
   const [size,    setSize]    = useState(20)
   const [opacity, setOpacity] = useState(0.85)
-  const [aiOpen,  setAiOpen]  = useState(false)
+  const [aiOpen,  setAiOpen]  = useState(true)
 
   // Dialogue messages shown in AIPanel
   const [messages, setMessages] = useState(() => {
@@ -214,6 +302,21 @@ export default function CanvasPage() {
   const addMessage = useCallback((msg) => {
     setMessages((prev) => [...prev, msg])
   }, [])
+
+  const [micActive, setMicActive] = useState(true)
+
+  const handleSendMessage = useCallback(async (text) => {
+    const elapsed = (Date.now() - sessionStartRef.current) / 1000
+    const mm = String(Math.floor(elapsed / 60)).padStart(1, '0')
+    const ss = String(Math.floor(elapsed % 60)).padStart(2, '0')
+    addMessage({ role: 'user', content: text, timestamp: `${mm}:${ss}` })
+    try {
+      const result = await api.sendMessage(session.sessionId, text, dialogueRef.current)
+      addMessage({ role: 'assistant', content: result.response, timestamp: `${mm}:${ss}` })
+    } catch (err) {
+      console.error('[CanvasPage] sendMessage failed:', err)
+    }
+  }, [addMessage, session.sessionId])
 
   const { isConnected, isSpeaking, connect: connectHume, disconnect: disconnectHume } = useHumeVoice({
     onTranscript: useCallback((text) => {
@@ -485,6 +588,9 @@ export default function CanvasPage() {
           messages={messages}
           isConnected={isConnected}
           isSpeaking={isSpeaking}
+          onSendMessage={handleSendMessage}
+          isMicActive={micActive}
+          onToggleMic={() => setMicActive((m) => !m)}
         />
       </div>
     </div>

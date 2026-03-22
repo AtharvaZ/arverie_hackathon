@@ -108,10 +108,11 @@ export function drawInk(ctx, fromX, fromY, ctrlX, ctrlY, toX, toY, color, size, 
 export function drawSmudge(ctx, x, y, prevX, prevY, size) {
   const r = Math.min(Math.floor(size * 0.9), 55)
   if (r < 2) return
-  const sx = Math.floor(prevX - r)
-  const sy = Math.floor(prevY - r)
-  const sw = r * 2
-  const sh = r * 2
+  const sx = Math.max(0, Math.floor(prevX - r))
+  const sy = Math.max(0, Math.floor(prevY - r))
+  const sw = Math.min(r * 2, ctx.canvas.width - sx)
+  const sh = Math.min(r * 2, ctx.canvas.height - sy)
+  if (sw < 2 || sh < 2) return
   try {
     const imageData = ctx.getImageData(sx, sy, sw, sh)
     const blurred   = boxBlur(imageData, 3)
@@ -123,9 +124,12 @@ export function drawSmudge(ctx, x, y, prevX, prevY, size) {
     const tctx = tmp.getContext('2d')
     tctx.putImageData(blurred, 0, 0)
 
-    // Circular feathering: destination-in with radial gradient fades the square edges
+    // Circular feathering: destination-in with radial gradient fades the square edges.
+    // Center the gradient on the actual region midpoint, which may be smaller than r*2 at edges.
     tctx.globalCompositeOperation = 'destination-in'
-    const grad = tctx.createRadialGradient(r, r, 0, r, r, r)
+    const cx = sw / 2
+    const cy = sh / 2
+    const grad = tctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(cx, cy))
     grad.addColorStop(0,   'rgba(0,0,0,1)')
     grad.addColorStop(0.6, 'rgba(0,0,0,0.85)')
     grad.addColorStop(1,   'rgba(0,0,0,0)')
@@ -142,10 +146,11 @@ export function drawSmudge(ctx, x, y, prevX, prevY, size) {
 export function drawBlur(ctx, x, y, size) {
   const r = Math.min(Math.floor(size * 0.9), 55)
   if (r < 2) return
-  const sx = Math.floor(x - r)
-  const sy = Math.floor(y - r)
-  const sw = r * 2
-  const sh = r * 2
+  const sx = Math.max(0, Math.floor(x - r))
+  const sy = Math.max(0, Math.floor(y - r))
+  const sw = Math.min(r * 2, ctx.canvas.width - sx)
+  const sh = Math.min(r * 2, ctx.canvas.height - sy)
+  if (sw < 2 || sh < 2) return
   try {
     const imageData = ctx.getImageData(sx, sy, sw, sh)
     const blurred = boxBlur(imageData, 4)

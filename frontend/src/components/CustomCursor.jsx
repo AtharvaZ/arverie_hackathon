@@ -27,15 +27,12 @@ export default function CustomCursor() {
     gsap.set(dot,   { xPercent: -50, yPercent: -50, opacity: 0, rotation: 15 })
     gsap.set(brush, { xPercent: -50, yPercent: -50, opacity: 0 })
 
-    const qtBrushX = gsap.quickTo(brush, 'x', { duration: 0.12, ease: 'power3.out' })
-    const qtBrushY = gsap.quickTo(brush, 'y', { duration: 0.12, ease: 'power3.out' })
-
     let visible = false
 
     const onMove = (e) => {
       const { clientX: x, clientY: y } = e
       gsap.set(dot, { x, y })
-      qtBrushX(x); qtBrushY(y)
+      gsap.set(brush, { x, y })
 
       if (!visible) {
         visible = true
