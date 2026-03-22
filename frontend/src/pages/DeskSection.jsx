@@ -37,28 +37,98 @@ const DESK_CSS = `
   position:relative;
   height:100vh; overflow:hidden;
   display:flex; align-items:center; justify-content:center;
-  background:linear-gradient(160deg,#F2E8D5 0%,var(--wall) 50%,#E4D8B8 100%);
+  background:#EEE8D5; /* flat back wall */
 }
 .scene-texture {
-  position:absolute; inset:0; pointer-events:none; opacity:.5;
+  position:absolute; inset:0; pointer-events:none; opacity:.35;
   background:
     repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(140,110,60,.04) 3px,rgba(140,110,60,.04) 4px),
-    repeating-linear-gradient(90deg,transparent,transparent 6px,rgba(140,110,60,.025) 6px,rgba(140,110,60,.025) 12px);
+    repeating-linear-gradient(90deg,transparent,transparent 6px,rgba(140,110,60,.02) 6px,rgba(140,110,60,.02) 12px);
 }
 .scene-vignette {
   position:absolute; inset:0; pointer-events:none;
-  background:radial-gradient(ellipse at 50% 50%,transparent 38%,rgba(100,75,40,.16) 100%);
+  background:radial-gradient(ellipse at 50% 45%,transparent 35%,rgba(90,60,20,.13) 100%);
 }
 .scene-lampglow {
   position:absolute; pointer-events:none; width:50%; height:65%;
   top:8%; left:50%; transform:translateX(-20%);
-  background:radial-gradient(ellipse at 62% 18%,rgba(220,165,55,.1) 0%,rgba(200,140,40,.04) 45%,transparent 72%);
+  background:radial-gradient(ellipse at 62% 18%,rgba(220,165,55,.08) 0%,rgba(200,140,40,.03) 45%,transparent 72%);
+}
+
+/* Crown molding */
+.room-molding {
+  position:absolute; top:0; left:0; right:0; height:20px;
+  background:linear-gradient(to bottom,#D8CC98,#C4B47E,#DACEAA);
+  border-bottom:1px solid rgba(140,110,60,.15);
+  pointer-events:none; z-index:3;
+}
+/* Hardwood floor */
+.room-floor {
+  position:absolute; bottom:0; left:0; right:0; height:22%;
+  background:
+    repeating-linear-gradient(90deg,
+      transparent,transparent 99px,
+      rgba(0,0,0,.04) 99px,rgba(0,0,0,.04) 100px
+    ),
+    linear-gradient(180deg,#C8A85A 0%,#B89040 50%,#A07830 100%);
+  pointer-events:none; z-index:1;
+}
+/* Baseboard */
+.room-baseboard {
+  position:absolute; bottom:22%; left:0; right:0; height:10px;
+  background:linear-gradient(to bottom,#DCC88A,#C4AA6A);
+  box-shadow:0 3px 8px rgba(50,28,5,.18);
+  pointer-events:none; z-index:2;
+}
+
+/* ══ WINDOWS (two panels side by side) ════════════════════ */
+.room-window-wrap {
+  position:absolute; top:15%; left:50%; transform:translateX(-50%);
+  display:flex; gap:72px;
+  pointer-events:none; z-index:2;
+  will-change:transform,opacity;
+}
+.room-window-panel { display:flex; flex-direction:column; }
+/* Outer wall trim — window sill frame */
+.room-window-trim {
+  padding:14px 14px 0 14px;
+  background:linear-gradient(180deg,#D4C890 0%,#C4B878 100%);
+  border-radius:4px 4px 0 0;
+  box-shadow:inset 0 4px 12px rgba(0,0,0,.12), 0 10px 30px rgba(50,28,5,.25);
+}
+/* Bottom sill ledge */
+.room-window-sill {
+  display:block; height:14px; margin:0 -14px;
+  background:linear-gradient(to bottom,#C8B870,#9A7230);
+  border-radius:0 0 4px 4px;
+  box-shadow:0 6px 14px rgba(50,28,5,.28);
+}
+/* Glass pane — pure glass */
+.room-window-glass {
+  width:420px; height:240px; position:relative;
+  background:linear-gradient(175deg,
+    #B8D0EE 0%,#C8E0F8 20%,
+    #DAEEFF 45%,
+    #D8C8A0 68%,#C4A870 82%,#B09050 100%
+  );
+  border-radius:2px;
+  box-shadow:inset 0 0 60px rgba(180,215,255,.12);
+}
+.room-window-glass::before { content:none; }
+.room-window-glass::after  { content:none; }
+/* Window sill — hidden */
+.room-window-sill { display:none; }
+/* Soft light spill below windows */
+.room-window-glow {
+  position:absolute; top:100%; left:50%; transform:translateX(-50%);
+  width:720px; height:80px; pointer-events:none;
+  background:radial-gradient(ellipse at 50% 0%,rgba(220,205,155,.18) 0%,transparent 70%);
 }
 .wall-name {
-  position:absolute; top:36px; left:50%;
+  position:absolute; top:55px; left:50%;
   transform:translateX(-50%) translateY(0px);
   font-family:'Cormorant Garamond',serif; font-style:italic;
-  font-size:clamp(14px,2vw,20px); color:rgba(90,60,20,.3);
+  font-size:clamp(20px,3vw,32px); color:rgba(90,60,20,.3);
   letter-spacing:6px; white-space:nowrap;
   pointer-events:none; user-select:none;
   will-change:transform,opacity;
@@ -66,39 +136,42 @@ const DESK_CSS = `
 .wall-name span { color:rgba(90,60,20,.54); }
 
 /* ══ DESK ASSEMBLY ══════════════════════════ */
-.desk-scene { position:relative; }
 .desk-wrap {
-  position:relative; width:720px; max-width:92vw; height:500px;
-  transform:perspective(1000px) rotateX(18deg) rotateZ(-1deg) scale(1.05);
+  position:relative; width:960px; max-width:92vw; height:460px;
+  transform:perspective(1000px) rotateX(18deg) rotateZ(0deg) scale(0.78);
+  transform-origin:50% 80%;
   transform-style:preserve-3d;
   filter:drop-shadow(0 60px 36px rgba(40,20,5,.4)) drop-shadow(0 24px 16px rgba(40,20,5,.28));
   will-change:transform;
 }
 
+/* ══ DESK SCENE ══════════════════════════ */
+.desk-scene { position:absolute; bottom:14%; left:50%; transform:translateX(-50%); z-index:5; }
+
 /* ── desk legs ── */
 .desk-legs {
   position:absolute;
   top:100%; left:0; right:0;
-  height:72px;
+  height:100px;
   pointer-events:none;
 }
 .leg {
-  position:absolute; top:0; width:14px;
-  background:linear-gradient(to bottom,var(--walnut-hi) 0%,var(--walnut) 50%,var(--walnut-face) 100%);
-  border-radius:0 0 5px 5px;
-  box-shadow:2px 0 6px rgba(0,0,0,.32),inset -2px 0 0 rgba(0,0,0,.18);
+  position:absolute; top:0; width:30px;
+  background:linear-gradient(to right,#120804 0%,#2A1A0A 35%,#1E1008 65%,#0E0604 100%);
+  border-radius:0 0 4px 4px;
+  box-shadow:3px 0 10px rgba(0,0,0,.55),inset -3px 0 0 rgba(0,0,0,.35),inset 3px 0 0 rgba(255,255,255,.04);
   opacity:0;
   animation:legDrop .6s cubic-bezier(.34,1.4,.64,1) forwards;
 }
-.lg1 { left:7%;  height:68px; animation-delay:.1s;  }
-.lg2 { right:7%; height:68px; animation-delay:.18s; }
-.lg3 { left:20%; height:56px; animation-delay:.08s; }
-.lg4 { right:20%;height:56px; animation-delay:.14s; }
+.lg1 { left:6%;  height:96px; animation-delay:.1s;  transform-origin:top center; transform:rotate(-1.5deg); }
+.lg2 { right:6%; height:96px; animation-delay:.18s; transform-origin:top center; transform:rotate(1.5deg); }
+.lg3 { left:22%; height:82px; animation-delay:.08s; width:22px; background:linear-gradient(to right,#0E0604 0%,#1E1008 60%,#0A0402 100%); }
+.lg4 { right:22%;height:82px; animation-delay:.14s; width:22px; background:linear-gradient(to right,#0E0604 0%,#1E1008 60%,#0A0402 100%); }
 
 .desk-bar {
-  position:absolute; top:42px; left:8%; right:8%; height:6px;
-  background:linear-gradient(to bottom,var(--walnut-hi),var(--walnut-face));
-  border-radius:2px; box-shadow:0 2px 4px rgba(0,0,0,.2);
+  position:absolute; top:56px; left:7%; right:7%; height:10px;
+  background:linear-gradient(to bottom,#2A1A0A,#120804);
+  border-radius:2px; box-shadow:0 3px 8px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05);
   opacity:0; animation:legDrop .5s cubic-bezier(.34,1.2,.64,1) .28s forwards;
 }
 
@@ -228,15 +301,22 @@ const DESK_CSS = `
 .pen-navy    { background:linear-gradient(180deg,#2A3650 0%,#1C2640 50%,#121A30 100%); --nib-color:#6A6860; }
 .pen-charcoal{ background:linear-gradient(180deg,#484440 0%,#30302C 50%,#202020 100%); --nib-color:#787470; }
 
-/* ── scattered papers ── */
-.scatter { position:absolute; background:var(--paper); border-radius:1px; box-shadow:0 2px 8px rgba(30,18,6,.22),0 1px 2px rgba(30,18,6,.14); }
-.sc1 { top:6%;  left:26%; width:12%; height:9%; transform:rotate(-4deg); }
-.sc2 { top:4%;  left:41%; width:10%; height:7%; transform:rotate(3.5deg); }
-.sc3 { top:9%;  left:55%; width:8%;  height:6%; transform:rotate(-2deg); opacity:.7; }
+/* ── scattered papers — hidden ── */
+.sc1, .sc2, .sc3 { display:none; }
+
+/* ── back paper (previous drawing, peeks from behind main canvas) ── */
+.back-paper {
+  position:absolute; top:6%; left:11%; width:37%; height:75%;
+  background:var(--paper-lo); border-radius:2px; z-index:4;
+  transform:rotate(8deg) translateX(52%);
+  box-shadow:0 4px 18px rgba(20,10,2,.28), 0 1px 4px rgba(20,10,2,.14);
+  pointer-events:none; overflow:hidden;
+}
+.back-paper img { width:100%; height:100%; object-fit:cover; opacity:0.7; }
 
 /* ── big drawing paper ── */
 .big-paper {
-  position:absolute; top:12%; left:15%; width:50%; height:65%;
+  position:absolute; top:6%; left:13%; width:35%; height:73%;
   background:var(--paper); border-radius:2px; cursor:pointer; z-index:5;
   box-shadow:0 8px 28px rgba(20,10,2,.38),0 3px 8px rgba(20,10,2,.22),inset 0 0 0 .5px rgba(0,0,0,.05);
   transition:transform .32s cubic-bezier(.2,.85,.3,1),box-shadow .32s;
@@ -276,8 +356,8 @@ const DESK_CSS = `
 
 /* ── journal ── */
 .journal {
-  position:absolute; top:10%; right:4%; width:20%; height:42%;
-  cursor:pointer; z-index:5;
+  position:absolute; top:5%; right:4%; width:14%; height:40%;
+  cursor:pointer; z-index:5; overflow:visible;
   transition:transform .32s cubic-bezier(.2,.85,.3,1),filter .3s;
 }
 .journal:hover { transform:translateY(-8px) rotate(-4deg); }
@@ -331,8 +411,8 @@ const DESK_CSS = `
 }
 .journal:hover .journal-label { opacity:1; }
 
-/* ── palette cards ── */
-.palette-cards { position:absolute; bottom:9%; left:5%; z-index:5; display:flex; gap:10px; }
+/* ── palette cards — vertical stack left side below pens ── */
+.palette-cards { position:absolute; top:40%; left:3%; z-index:5; display:flex; flex-direction:column; gap:8px; }
 .pal-card {
   width:60px; height:76px; background:var(--paper); border-radius:2px;
   box-shadow:0 3px 12px rgba(30,18,6,.28),0 1px 3px rgba(30,18,6,.16);
@@ -359,10 +439,10 @@ const DESK_CSS = `
 }
 .gc-tl { position:absolute; top:5px;    left:5px;  width:9px; height:9px; border-top:.75px solid rgba(200,168,75,.45); border-left:.75px solid rgba(200,168,75,.45); }
 .gc-br { position:absolute; bottom:5px; right:5px; width:9px; height:9px; border-bottom:.75px solid rgba(200,168,75,.28); border-right:.75px solid rgba(200,168,75,.28); }
-.sp-back  { bottom:18%; right:12%; width:21%; transform:rotate(-2deg); }
+.sp-back  { top:56%; right:4%; width:17%; transform:rotate(-2deg); }
 .sp-back:hover  { transform:rotate(-2deg) translateY(-7px);  box-shadow:0 14px 32px rgba(30,18,6,.36); }
-.sp-front { bottom:5%;  right:7%;  width:23%; transform:rotate(2.8deg); }
-.sp-front:hover { transform:rotate(2.8deg) translateY(-7px); box-shadow:0 14px 32px rgba(30,18,6,.36); }
+.sp-front { top:74%; right:4%; width:17%; transform:rotate(2.5deg); }
+.sp-front:hover { transform:rotate(2.5deg) translateY(-7px); box-shadow:0 14px 32px rgba(30,18,6,.36); }
 .stat-lbl  { font-family:'Cormorant Garamond',serif; font-size:10px;  color:rgba(70,46,16,.44); text-transform:uppercase; letter-spacing:1.2px; margin-bottom:2px; position:relative; z-index:1; }
 .stat-val  { font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; color:#1E1710; line-height:1; position:relative; z-index:1; }
 .stat-unit { font-size:11px; color:rgba(70,46,16,.34); margin-top:3px; letter-spacing:.5px; position:relative; z-index:1; }
@@ -446,7 +526,7 @@ const DESK_CSS = `
 
 export default function DeskSection() {
   const navigate = useNavigate();
-  const { user } = useApp();
+  const { user, session, pastSessions } = useApp();
 
   // modal state — show if no name (user.name is always set in AppContext for now)
   const [showModal, setShowModal] = useState(false);
@@ -457,8 +537,10 @@ export default function DeskSection() {
   // scroll animation refs — no state to avoid re-renders
   const sectionRef = useRef(null);
   const deskWrapRef = useRef(null);
+  const deskSceneRef = useRef(null);
   const wallNameRef = useRef(null);
   const deskLegsRef = useRef(null);
+  const windowsRef = useRef(null);
   const progressRef = useRef(0);
 
   const TOTAL_PHASES = 2;
@@ -480,15 +562,19 @@ export default function DeskSection() {
       // Phase 1 (0→1): flatten tilt
       const p1 = clamp01(progressRef.current);
       const rotX = lerp(18, 0, p1);
-      const rotZ = lerp(-1, 0, p1);
-      const sc1 = lerp(1.05, 1, p1);
+      const rotZ = 0;
+      const sc1 = lerp(0.78, 1, p1);
 
       // Phase 2 (1→2): zoom in
       const p2 = clamp01(progressRef.current - 1);
-      const zoom = lerp(1, 1.38, p2);
+      const zoom = lerp(1, 1.35, p2);
 
       if (deskWrapRef.current) {
         deskWrapRef.current.style.transform = `perspective(1000px) rotateX(${rotX}deg) rotateZ(${rotZ}deg) scale(${sc1 * zoom})`;
+      }
+      if (deskSceneRef.current) {
+        const upShift = lerp(0, -60, p1);
+        deskSceneRef.current.style.transform = `translateX(-50%) translateY(${upShift}px)`;
       }
       if (wallNameRef.current) {
         wallNameRef.current.style.transform = `translateX(-50%) translateY(${lerp(0, -80, p1)}px)`;
@@ -498,6 +584,10 @@ export default function DeskSection() {
         const legP = clamp01((p1 - 0.3) / 0.45);
         deskLegsRef.current.style.opacity = String(1 - legP);
         deskLegsRef.current.style.transform = `translateY(${lerp(0, 28, legP)}px)`;
+      }
+      if (windowsRef.current) {
+        windowsRef.current.style.transform = `translateX(-50%) translateY(${lerp(0, -120, p1)}px)`;
+        windowsRef.current.style.opacity = String(lerp(1, 0, p1));
       }
     }
 
@@ -603,6 +693,26 @@ export default function DeskSection() {
 
       <section className="scene-outer" ref={sectionRef}>
         <div className="scene-sticky">
+          {/* Room background — behind everything */}
+          <div className="room-molding" />
+          <div className="room-floor" />
+          <div className="room-baseboard" />
+          <div className="room-window-wrap" ref={windowsRef}>
+            <div className="room-window-glow" />
+            <div className="room-window-panel">
+              <div className="room-window-trim">
+                <div className="room-window-glass" />
+              </div>
+              <div className="room-window-sill" />
+            </div>
+            <div className="room-window-panel">
+              <div className="room-window-trim">
+                <div className="room-window-glass" />
+              </div>
+              <div className="room-window-sill" />
+            </div>
+          </div>
+
           <div className="scene-texture" />
           <div className="scene-vignette" />
           <div className="scene-lampglow" />
@@ -620,7 +730,7 @@ export default function DeskSection() {
             )}
           </div>
 
-          <div className="desk-scene">
+          <div className="desk-scene" ref={deskSceneRef}>
             <div className="desk-wrap" ref={deskWrapRef}>
               <div className="desk-surface">
                 <div className="desk-grain" />
@@ -655,10 +765,12 @@ export default function DeskSection() {
                   />
                 </div>
 
-                {/* Scattered papers */}
-                <div className="scatter sc1" />
-                <div className="scatter sc2" />
-                <div className="scatter sc3" />
+                {/* Back paper — previous drawing peeks behind main canvas */}
+                <div className="back-paper">
+                  {session?.drawingDataURL && (
+                    <img src={session.drawingDataURL} alt="" />
+                  )}
+                </div>
 
                 {/* Big drawing paper */}
                 <div
@@ -708,98 +820,134 @@ export default function DeskSection() {
                   <div className="journal-label">open journal</div>
                 </div>
 
-                {/* Palette cards */}
+                {/* Palette cards — latest sessions (1–3), or black placeholders if none */}
                 <div className="palette-cards">
-                  <div className="pal-card" style={{ "--r": "-5deg" }}>
-                    <div className="pal-swatches">
-                      <div
-                        className="pal-swatch"
-                        style={{ background: "#2C3E50" }}
-                      />
-                      <div
-                        className="pal-swatch"
-                        style={{ background: "#34495E" }}
-                      />
-                      <div
-                        className="pal-swatch"
-                        style={{ background: "#1A252F" }}
-                      />
-                    </div>
-                    <div className="pal-date">mar 3</div>
-                  </div>
-                  <div className="pal-card" style={{ "--r": "2deg" }}>
-                    <div className="pal-swatches">
-                      <div
-                        className="pal-swatch"
-                        style={{ background: "#5D6D7E" }}
-                      />
-                      <div
-                        className="pal-swatch"
-                        style={{ background: "#E59866" }}
-                      />
-                      <div
-                        className="pal-swatch"
-                        style={{ background: "#F0B27A" }}
-                      />
-                    </div>
-                    <div className="pal-date">mar 9</div>
-                  </div>
-                  <div className="pal-card" style={{ "--r": "-2.5deg" }}>
-                    <div className="pal-swatches">
-                      <div
-                        className="pal-swatch"
-                        style={{ background: "#F4D03F" }}
-                      />
-                      <div
-                        className="pal-swatch"
-                        style={{ background: "#58D68D" }}
-                      />
-                      <div
-                        className="pal-swatch"
-                        style={{ background: "#7FB3D3" }}
-                      />
-                    </div>
-                    <div className="pal-date">mar 14</div>
-                  </div>
+                  {pastSessions.length > 0
+                    ? pastSessions.slice(-3).map((s, i) => {
+                        const rotations = ["-5deg", "2deg", "-2.5deg"];
+                        const colors = s.data?.color_palette || [];
+                        const dateLabel = new Date(
+                          s.created_at,
+                        ).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        });
+                        return (
+                          <div
+                            key={s.id}
+                            className="pal-card"
+                            style={{ "--r": rotations[i] }}
+                          >
+                            <div className="pal-swatches">
+                              {colors.slice(0, 3).map((hex, ci) => (
+                                <div
+                                  key={ci}
+                                  className="pal-swatch"
+                                  style={{ background: hex }}
+                                />
+                              ))}
+                              {colors.length === 0 && (
+                                <div
+                                  className="pal-swatch"
+                                  style={{ background: "#8a7a6a" }}
+                                />
+                              )}
+                            </div>
+                            <div className="pal-date">{dateLabel}</div>
+                          </div>
+                        );
+                      })
+                    : ["-5deg", "2deg", "-2.5deg"].map((r, i) => (
+                        <div
+                          key={i}
+                          className="pal-card"
+                          style={{ "--r": r, background: "#111" }}
+                        >
+                          <div className="pal-swatches">
+                            <div
+                              className="pal-swatch"
+                              style={{ background: "#111" }}
+                            />
+                            <div
+                              className="pal-swatch"
+                              style={{ background: "#1a1a1a" }}
+                            />
+                            <div
+                              className="pal-swatch"
+                              style={{ background: "#0a0a0a" }}
+                            />
+                          </div>
+                          <div
+                            className="pal-date"
+                            style={{
+                              background: "#1a1a1a",
+                              color: "rgba(255,255,255,.35)",
+                              fontSize: "8px",
+                              letterSpacing: "1px",
+                            }}
+                          >
+                            {i === 0 ? "no sessions yet" : "no session"}
+                          </div>
+                        </div>
+                      ))}
                 </div>
 
-                {/* Stat papers */}
+                {/* Stat papers — real session data */}
                 <div className="stat-paper sp-back">
                   <div className="gc-tl" />
                   <div className="gc-br" />
                   <div className="stat-lbl">sessions</div>
-                  <div className="stat-val">5</div>
-                  <div className="stat-unit">this month</div>
+                  <div className="stat-val">{pastSessions.length}</div>
+                  <div className="stat-unit">total</div>
                 </div>
-                <div className="stat-paper sp-front">
-                  <div className="gc-tl" />
-                  <div className="gc-br" />
-                  <div className="stat-lbl">avg lift</div>
-                  <div className="stat-val">+1.8</div>
-                  <div className="stat-unit">mood · per session</div>
-                  <div className="stat-bars">
-                    <div
-                      className="stat-bar"
-                      style={{ height: "36%", background: "#B09070" }}
-                    />
-                    <div
-                      className="stat-bar"
-                      style={{ height: "50%", background: "#B89868" }}
-                    />
-                    <div
-                      className="stat-bar"
-                      style={{ height: "46%", background: "#C09860" }}
-                    />
-                    <div
-                      className="stat-bar"
-                      style={{ height: "68%", background: "#C4956A" }}
-                    />
-                    <div
-                      className="stat-bar"
-                      style={{ height: "84%", background: "#C8A84B" }}
-                    />
-                  </div>
-                </div>
+                {(() => {
+                  const withMood = pastSessions.filter(
+                    (s) => s.mood_checkin != null && s.mood_checkout != null,
+                  );
+                  const lifts = withMood.map(
+                    (s) => s.mood_checkout - s.mood_checkin,
+                  );
+                  const avgLift = lifts.length
+                    ? lifts.reduce((a, b) => a + b, 0) / lifts.length
+                    : null;
+                  const barColors = [
+                    "#B09070",
+                    "#B89868",
+                    "#C09860",
+                    "#C4956A",
+                    "#C8A84B",
+                  ];
+                  const barHeights = lifts.length
+                    ? lifts
+                        .slice(-5)
+                        .map((l) => Math.max(10, Math.min(100, 50 + l * 10)))
+                    : [36, 50, 46, 68, 84];
+                  return (
+                    <div className="stat-paper sp-front">
+                      <div className="gc-tl" />
+                      <div className="gc-br" />
+                      <div className="stat-lbl">avg lift</div>
+                      <div className="stat-val">
+                        {avgLift != null
+                          ? `${avgLift >= 0 ? "+" : ""}${avgLift.toFixed(1)}`
+                          : "—"}
+                      </div>
+                      <div className="stat-unit">mood · per session</div>
+                      <div className="stat-bars">
+                        {barHeights.map((h, i) => (
+                          <div
+                            key={i}
+                            className="stat-bar"
+                            style={{
+                              height: `${h}%`,
+                              background: barColors[i],
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               {/* /desk-surface */}
 

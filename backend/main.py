@@ -40,9 +40,15 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Arverié Backend")
 
+_extra_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:5173",
+        *_extra_origins,
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -185,16 +191,23 @@ async def session_end(body: SessionEndRequest) -> SessionEndResponse:
         image_bytes = base64.b64decode(body.image_base64)
         drawing_url = upload_drawing(body.session_id, image_bytes)
 
-        vision_description = call_vision_description(body.image_base64)
+        loop = asyncio.get_event_loop()
+        vision_description = await loop.run_in_executor(
+            None, partial(call_vision_description, body.image_base64)
+        )
 
         intake = session_intake_data.get(body.session_id, {})
-        questions = call_reflection_questions(
-            mood_checkin=intake.get("mood_checkin", ""),
-            intake_transcript=intake.get("transcript", ""),
-            themes=intake.get("themes", []),
-            canvas_summary=body.canvas_summary,
-            vision_description=vision_description,
-            dialogue_history=body.dialogue_history,
+        questions = await loop.run_in_executor(
+            None,
+            partial(
+                call_reflection_questions,
+                mood_checkin=intake.get("mood_checkin", ""),
+                intake_transcript=intake.get("transcript", ""),
+                themes=intake.get("themes", []),
+                canvas_summary=body.canvas_summary,
+                vision_description=vision_description,
+                dialogue_history=body.dialogue_history,
+            ),
         )
 
         logger.info(
@@ -224,13 +237,18 @@ async def session_complete(body: SessionCompleteRequest) -> SessionCompleteRespo
             )
         ]
 
-        letter = call_session_letter(
-            intake_transcript=intake.get("transcript", ""),
-            themes=intake.get("themes", []),
-            canvas_summary=full_data.get("canvas_summary", {}),
-            vision_description=full_data.get("vision_description", ""),
-            dialogue_history=full_data.get("dialogue_history", []),
-            qa_pairs=qa_pairs,
+        loop = asyncio.get_event_loop()
+        letter = await loop.run_in_executor(
+            None,
+            partial(
+                call_session_letter,
+                intake_transcript=intake.get("transcript", ""),
+                themes=intake.get("themes", []),
+                canvas_summary=full_data.get("canvas_summary", {}),
+                vision_description=full_data.get("vision_description", ""),
+                dialogue_history=full_data.get("dialogue_history", []),
+                qa_pairs=qa_pairs,
+            ),
         )
 
         canvas_summary = full_data.get("canvas_summary", {})
@@ -241,6 +259,7 @@ async def session_complete(body: SessionCompleteRequest) -> SessionCompleteRespo
             "mood_checkin": intake.get("mood_checkin"),
             "mood_checkout": body.mood_checkout,
             "duration_seconds": body.duration_seconds,
+            "drawing_url": full_data.get("drawing_url", ""),
             "data": {
                 **full_data,
                 "intake_transcript": intake.get("transcript", ""),

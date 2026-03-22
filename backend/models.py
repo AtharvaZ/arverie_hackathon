@@ -86,7 +86,7 @@ class SessionEndResponse(BaseModel):
 class SessionCompleteRequest(BaseModel):
     session_id: str
     user_id: str
-    mood_checkout: str
+    mood_checkout: Optional[str] = None
     user_answers: list[str]
     duration_seconds: int
     full_session_data: dict

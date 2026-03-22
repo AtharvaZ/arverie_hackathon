@@ -109,7 +109,11 @@ class HumeClient:
             return True
 
         api_key = os.getenv("HUME_API_KEY")
+        config_id = os.getenv("HUME_VOICE_ID", "").strip()
         hume_url = f"wss://api.hume.ai/v0/evi/chat?api_key={api_key}"
+        if config_id:
+            hume_url = f"{hume_url}&config_id={config_id}"
+            logger.info(f"Using Hume config_id: {config_id}")
 
         try:
             self.hume_ws = await websockets.connect(hume_url)
