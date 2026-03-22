@@ -613,6 +613,12 @@ async def session_end(
         owner = _resolve_session_owner(body.session_id)
         _authorize_session_access(body.session_id, authorization, user_id=owner)
         _touch_session(body.session_id)
+
+        # Stop any active Hume stream as soon as the user finishes drawing.
+        hume = active_hume_sessions.pop(body.session_id, None)
+        if hume:
+            await hume.close()
+
         _enforce_rate_limit("end:session", body.session_id, LIMIT_END_PER_MINUTE)
         _enforce_rate_limit("end:ip", _client_ip(x_forwarded_for), LIMIT_END_PER_MINUTE)
 
