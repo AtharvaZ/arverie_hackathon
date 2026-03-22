@@ -126,10 +126,44 @@ export function computeSnapshot(
     ? (lastStroke.timestamp - sessionStartMs) / 1000
     : 0;
 
+  const currentBrush = recentStrokes.length
+    ? recentStrokes[recentStrokes.length - 1].brush || null
+    : null;
+
+  const brushUsageWindow = recentStrokes.reduce((acc, stroke) => {
+    const key = typeof stroke.brush === "string" ? stroke.brush : "unknown";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  const strokeSpeedValues = recentStrokes
+    .map((s) => Number(s.avgSpeedPxPerSec || 0))
+    .filter((v) => Number.isFinite(v) && v > 0);
+  const avgStrokeSpeedWindow = strokeSpeedValues.length
+    ? strokeSpeedValues.reduce((a, b) => a + b, 0) / strokeSpeedValues.length
+    : 0;
+
+  const strokeSamplesWindow = recentStrokes.slice(-3).map((stroke) => ({
+    timestamp: Math.round((stroke.timestamp - sessionStartMs) / 1000),
+    brush: stroke.brush || "unknown",
+    centroid: {
+      x: Math.round(stroke.centroid?.x || 0),
+      y: Math.round(stroke.centroid?.y || 0),
+    },
+    avg_speed_px_per_sec: Number(stroke.avgSpeedPxPerSec || 0),
+    points: Array.isArray(stroke.pointSamples)
+      ? stroke.pointSamples.slice(0, 8)
+      : [],
+  }));
+
   return {
     strokes_per_second: Math.round(strokesPerSecond * 100) / 100,
     stroke_count_window: recentStrokes.length,
     current_color: currentColor,
+    current_brush: currentBrush,
+    brush_usage_window: brushUsageWindow,
+    avg_stroke_speed_window: Math.round(avgStrokeSpeedWindow * 100) / 100,
+    stroke_samples_window: strokeSamplesWindow,
     colors_used_this_window: colorsInWindow,
     erase_events: eraseEvents,
     erase_count_window: eraseEvents.length,
@@ -229,6 +263,44 @@ export function buildCanvasSummary(
     }
   }
 
+  const brushUsage = strokes.reduce((acc, stroke) => {
+    const key = typeof stroke.brush === "string" ? stroke.brush : "unknown";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  const allSpeedValues = strokes
+    .map((s) => Number(s.avgSpeedPxPerSec || 0))
+    .filter((v) => Number.isFinite(v) && v > 0);
+  const strokeSpeedStats = {
+    avg_px_per_sec: allSpeedValues.length
+      ? Math.round(
+          (allSpeedValues.reduce((a, b) => a + b, 0) / allSpeedValues.length) *
+            100,
+        ) / 100
+      : 0,
+    max_px_per_sec: allSpeedValues.length
+      ? Math.round(Math.max(...allSpeedValues) * 100) / 100
+      : 0,
+    min_px_per_sec: allSpeedValues.length
+      ? Math.round(Math.min(...allSpeedValues) * 100) / 100
+      : 0,
+  };
+
+  const strokePathSamples = strokes.slice(-8).map((stroke) => ({
+    timestamp: Math.round((stroke.timestamp - sessionStartMs) / 1000),
+    brush: stroke.brush || "unknown",
+    avg_speed_px_per_sec: Number(stroke.avgSpeedPxPerSec || 0),
+    centroid: {
+      x: Math.round(stroke.centroid?.x || 0),
+      y: Math.round(stroke.centroid?.y || 0),
+    },
+    bounds: stroke.bounds || null,
+    points: Array.isArray(stroke.pointSamples)
+      ? stroke.pointSamples.slice(0, 10)
+      : [],
+  }));
+
   return {
     colors_used: allColors,
     erasure_count: erasures.length,
@@ -236,6 +308,9 @@ export function buildCanvasSummary(
     time_in_quadrants: timeInQuadrants,
     total_time_seconds: Math.round(totalSeconds),
     stroke_speed_events: speedEvents.slice(0, 5),
+    stroke_speed_stats: strokeSpeedStats,
+    brush_usage: brushUsage,
+    stroke_path_samples: strokePathSamples,
     dominant_area: dominantArea,
   };
 }

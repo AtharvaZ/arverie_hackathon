@@ -12,7 +12,7 @@ import { motion } from "framer-motion";
 import { gsap } from "gsap";
 import { useApp } from "../context/AppContext";
 import logoSvgRaw from "../assets/logo.svg?raw";
-import heroBg from "../assets/hero_background.png";
+import heroBg from "../assets/hero_background.jpeg";
 import DeskSection from "./DeskSection";
 
 const HeroCanvasP5 = React.lazy(() => import("../components/HeroCanvasP5"));

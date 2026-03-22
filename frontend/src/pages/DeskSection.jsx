@@ -41,9 +41,9 @@ const DESK_CSS = `
 }
 .room-wall {
   --window-top: 15%;
-  --window-width: 420px;
-  --window-height: 240px;
-  --window-gap: 72px;
+  --window-width: 462px;
+  --window-height: 276px;
+  --window-gap: 68px;
   position:absolute;
   inset:0;
   pointer-events:none;
@@ -120,6 +120,20 @@ const DESK_CSS = `
     linear-gradient(180deg,#C8A85A 0%,#B89040 50%,#A07830 100%);
   pointer-events:none; z-index:1;
 }
+.room-rug-hint {
+  position:absolute;
+  left:50%;
+  bottom:5%;
+  width:min(64vw, 940px);
+  height:17%;
+  transform:translateX(-50%);
+  border-radius:48% 52% 42% 58% / 65% 62% 38% 35%;
+  background:
+    radial-gradient(ellipse at 50% 42%,rgba(210,186,128,.18),rgba(156,121,66,.13) 54%,rgba(126,92,44,.08) 82%,transparent 100%);
+  box-shadow:0 14px 40px rgba(45,24,6,.2);
+  pointer-events:none;
+  z-index:1;
+}
 /* Baseboard */
 .room-baseboard {
   position:absolute; bottom:22%; left:0; right:0; height:10px;
@@ -130,8 +144,12 @@ const DESK_CSS = `
 
 /* ══ WINDOWS (two panels side by side) ════════════════════ */
 .room-window-wrap {
-  position:absolute; top:15%; left:50%; transform:translateX(-50%);
-  display:flex; gap:72px;
+  position:absolute;
+  top:var(--window-top);
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:var(--window-gap);
   pointer-events:none; z-index:4;
   will-change:transform,opacity;
 }
@@ -139,10 +157,10 @@ const DESK_CSS = `
 /* Outer wall trim — window sill frame */
 .room-window-trim {
   position:relative;
-  padding:14px 14px 0 14px;
+  padding:9px 9px 0 9px;
   background:transparent;
   border-radius:4px 4px 0 0;
-  box-shadow:0 10px 30px rgba(50,28,5,.25);
+  box-shadow:0 8px 20px rgba(50,28,5,.2);
 }
 .room-window-trim::before {
   content:"";
@@ -150,46 +168,259 @@ const DESK_CSS = `
   inset:0;
   border-radius:4px 4px 0 0;
   box-shadow:
-    inset 0 0 0 14px #C4B878,
-    inset 0 4px 12px rgba(0,0,0,.12);
+    inset 0 0 0 9px #C4B878,
+    inset 0 3px 8px rgba(0,0,0,.1);
   pointer-events:none;
 }
 /* Bottom sill ledge */
 .room-window-sill {
-  display:block; height:14px; margin:0 -14px;
-  background:linear-gradient(to bottom,#C8B870,#9A7230);
+  display:block;
+  height:8px;
+  margin:0 -4px;
+  background:linear-gradient(to bottom,#CCBE7D,#9D7633);
   border-radius:0 0 4px 4px;
-  box-shadow:0 6px 14px rgba(50,28,5,.28);
+  box-shadow:0 4px 9px rgba(50,28,5,.2);
 }
 /* Glass pane */
 .room-window-glass {
-  width:420px; height:240px; position:relative;
-  background:transparent;
+  width:var(--window-width);
+  height:var(--window-height);
+  position:relative;
+  background:
+    radial-gradient(circle at 22% 16%,rgba(255,235,195,.38),transparent 36%),
+    linear-gradient(180deg,rgba(170,198,214,.46) 0%,rgba(148,173,186,.34) 48%,rgba(131,157,169,.28) 100%);
   border-radius:2px;
   box-shadow:
     inset 0 0 0 1px rgba(100,78,42,.34),
     inset 0 0 40px rgba(255,220,170,.08);
 }
-.room-window-glass::before { content:none; }
-.room-window-glass::after  { content:none; }
-/* Window sill — hidden */
-.room-window-sill { display:none; }
+.room-window-glass::before {
+  content:"";
+  position:absolute;
+  left:50%;
+  top:0;
+  bottom:0;
+  width:1px;
+  transform:translateX(-50%);
+  background:linear-gradient(180deg,rgba(91,72,40,.14),rgba(91,72,40,.3),rgba(91,72,40,.16));
+}
+.room-window-glass::after {
+  content:"";
+  position:absolute;
+  top:50%;
+  left:0;
+  right:0;
+  height:1px;
+  transform:translateY(-50%);
+  background:linear-gradient(90deg,rgba(91,72,40,.14),rgba(91,72,40,.3),rgba(91,72,40,.14));
+}
 /* Soft light spill below windows */
 .room-window-glow {
   position:absolute; top:100%; left:50%; transform:translateX(-50%);
-  width:720px; height:80px; pointer-events:none;
+  width:min(86vw,920px);
+  height:88px;
+  pointer-events:none;
   background:radial-gradient(ellipse at 50% 0%,rgba(220,205,155,.18) 0%,transparent 70%);
 }
+.room-art {
+  position:absolute;
+  top:15%;
+  left:6%;
+  width:min(11vw,150px);
+  aspect-ratio:4/5;
+  border-radius:3px;
+  background:linear-gradient(145deg,#B99962,#8E6D3D);
+  box-shadow:0 11px 24px rgba(42,22,4,.22);
+  pointer-events:none;
+  z-index:3;
+}
+.room-art::before {
+  content:"";
+  position:absolute;
+  inset:11px;
+  border-radius:2px;
+  background:var(--paper);
+  box-shadow:inset 0 0 0 1px rgba(146,110,58,.2);
+}
+.room-art-canvas {
+  position:absolute;
+  inset:20px;
+  border-radius:1px;
+  background:
+    radial-gradient(circle at 72% 20%,rgba(191,129,62,.34),transparent 42%),
+    linear-gradient(170deg,rgba(188,166,120,.3),rgba(145,116,76,.08) 45%,rgba(114,86,52,.2) 100%);
+  overflow:hidden;
+}
+.room-art-canvas::before,
+.room-art-canvas::after {
+  content:"";
+  position:absolute;
+  border-radius:999px;
+  background:rgba(96,65,35,.26);
+}
+.room-art-canvas::before {
+  width:78%;
+  height:2px;
+  left:10%;
+  top:58%;
+  transform:rotate(-10deg);
+}
+.room-art-canvas::after {
+  width:40%;
+  height:28%;
+  left:19%;
+  top:22%;
+  opacity:.75;
+}
+
+.room-shelf {
+  position:absolute;
+  top:21%;
+  right:3%;
+  width:min(14vw,180px);
+  height:12px;
+  border-radius:2px;
+  background:linear-gradient(180deg,#B88F4F,#8D6734);
+  box-shadow:0 8px 12px rgba(42,22,4,.22);
+  pointer-events:none;
+  z-index:3;
+}
+.room-shelf::before,
+.room-shelf::after {
+  content:"";
+  position:absolute;
+  top:100%;
+  width:3px;
+  height:13px;
+  background:rgba(94,67,36,.42);
+}
+.room-shelf::before { left:18%; }
+.room-shelf::after { right:14%; }
+.room-shelf-books {
+  position:absolute;
+  left:8%;
+  bottom:100%;
+  display:flex;
+  gap:4px;
+  align-items:flex-end;
+}
+.room-book {
+  width:11px;
+  border-radius:1px 1px 0 0;
+  box-shadow:inset -1px 0 0 rgba(0,0,0,.18);
+}
+.rb1 { height:35px; background:linear-gradient(180deg,#946749,#6E4B34); }
+.rb2 { height:41px; background:linear-gradient(180deg,#74806D,#58644F); }
+.rb3 { height:30px; background:linear-gradient(180deg,#B0865A,#825D3A); }
+.rb4 { height:37px; background:linear-gradient(180deg,#8E6C57,#6B4D3D); }
+
+.room-plant {
+  position:absolute;
+  right:12%;
+  bottom:100%;
+  width:40px;
+  height:56px;
+}
+.room-plant-pot {
+  position:absolute;
+  left:8px;
+  bottom:0;
+  width:24px;
+  height:18px;
+  border-radius:2px 2px 6px 6px;
+  background:linear-gradient(180deg,#A4724B,#7A4E30);
+  box-shadow:0 4px 8px rgba(42,22,4,.22);
+}
+.room-plant-leaf {
+  position:absolute;
+  bottom:11px;
+  width:14px;
+  height:30px;
+  border-radius:20px 20px 0 20px;
+  background:linear-gradient(180deg,#7A9258,#55713D);
+  transform-origin:bottom center;
+}
+.rleaf1 { left:8px; transform:rotate(-22deg); }
+.rleaf2 { left:15px; height:34px; transform:rotate(4deg); }
+.rleaf3 { left:22px; transform:rotate(24deg) scaleX(-1); }
+
+.room-clock {
+  position:absolute;
+  top:6%;
+  right:7%;
+  width:54px;
+  height:54px;
+  border-radius:50%;
+  background:radial-gradient(circle at 36% 30%,#FBF3DA,#E5D4AA 62%,#D4BB8A 100%);
+  box-shadow:0 8px 18px rgba(42,22,4,.18), inset 0 0 0 2px rgba(130,94,49,.38);
+  pointer-events:none;
+  z-index:3;
+}
+.room-clock::before,
+.room-clock::after {
+  content:"";
+  position:absolute;
+  left:52%;
+  bottom:45%;
+  transform-origin:bottom center;
+  border-radius:999px;
+  background:rgba(95,66,34,.68);
+}
+.room-clock::before {
+  width:2px;
+  height:18px;
+  transform:translateX(-50%) rotate(34deg);
+}
+.room-clock::after {
+  width:2px;
+  height:23px;
+  transform:translateX(-50%) rotate(-48deg);
+}
+
+.room-wall-lamp {
+  position:absolute;
+  top:11%;
+  left:10%;
+  width:24px;
+  height:24px;
+  border-radius:50% 50% 46% 46%;
+  background:radial-gradient(circle at 36% 28%,#E5CC8C 0%,#B69354 52%,#846231 100%);
+  box-shadow:0 6px 14px rgba(42,22,4,.24), inset 0 -1px 0 rgba(72,48,20,.36);
+  pointer-events:none;
+  z-index:3;
+}
+.room-wall-lamp::before {
+  content:"";
+  position:absolute;
+  left:50%;
+  top:4px;
+  width:88px;
+  height:88px;
+  transform:translateX(-50%);
+  background:radial-gradient(circle,rgba(234,192,118,.3) 0%,rgba(234,192,118,.1) 42%,transparent 70%);
+}
+.room-wall-lamp::after {
+  content:"";
+  position:absolute;
+  left:50%;
+  top:-9px;
+  width:3px;
+  height:10px;
+  transform:translateX(-50%);
+  border-radius:3px;
+  background:rgba(112,82,41,.7);
+}
 .wall-name {
-  position:absolute; top:55px; left:50%;
+  position:absolute; top:7%; left:50%;
   transform:translateX(-50%) translateY(0px);
   font-family:'Cormorant Garamond',serif; font-style:italic;
-  font-size:clamp(20px,3vw,32px); color:rgba(90,60,20,.3);
+  font-size:clamp(22px,3vw,34px); color:rgba(90,60,20,.46);
   letter-spacing:6px; white-space:nowrap;
   pointer-events:none; user-select:none;
+  z-index:6;
   will-change:transform,opacity;
 }
-.wall-name span { color:rgba(90,60,20,.54); }
+.wall-name span { color:rgba(90,60,20,.68); }
 
 /* ══ DESK ASSEMBLY ══════════════════════════ */
 .desk-wrap {
@@ -585,6 +816,56 @@ const DESK_CSS = `
 .book-name { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 600; color: #FFF4E0; letter-spacing: 3px; }
 .book-rule { width: 40px; height: 1px; background: linear-gradient(to right,transparent,rgba(245,215,140,.6),transparent); }
 .book-sub { font-size: 10px; color: rgba(255,235,185,.8); letter-spacing: 3px; text-transform: uppercase; }
+
+@media (max-width: 1200px) {
+  .room-wall {
+    --window-width: 392px;
+    --window-height: 236px;
+    --window-gap: 42px;
+  }
+  .room-art {
+    left:2.5%;
+    width:min(11vw,132px);
+    top:28%;
+  }
+  .room-shelf {
+    right:2.5%;
+    width:min(13vw,160px);
+  }
+}
+
+@media (max-width: 900px) {
+  .room-wall {
+    --window-top: 13%;
+    --window-width: min(43vw, 268px);
+    --window-height: min(29vh, 190px);
+    --window-gap: min(5vw, 26px);
+  }
+  .room-window-wrap { top:14%; }
+  .room-clock { right:3%; width:48px; height:48px; }
+  .room-shelf,
+  .room-art,
+  .room-wall-lamp { display:none; }
+}
+
+@media (max-width: 640px) {
+  .room-wall {
+    --window-top: 15%;
+    --window-width: min(39vw, 170px);
+    --window-height: min(22vh, 136px);
+    --window-gap: 14px;
+  }
+  .room-window-trim { padding:6px 6px 0 6px; }
+  .room-window-trim::before { box-shadow:inset 0 0 0 6px #C4B878,inset 0 2px 6px rgba(0,0,0,.1); }
+  .room-window-sill { height:6px; margin:0 -3px; }
+  .room-window-glow { width:min(92vw, 420px); height:54px; }
+  .room-art,
+  .room-shelf,
+  .room-wall-lamp,
+  .room-clock { display:none; }
+  .room-plant { transform:scale(.88); transform-origin:bottom right; }
+  .room-rug-hint { width:92vw; height:14%; bottom:6%; opacity:.72; }
+}
 `;
 
 export default function DeskSection({
@@ -884,6 +1165,7 @@ export default function DeskSection({
           {/* Room details */}
           <div className="room-molding" ref={wallTopRef} />
           <div className="room-floor" />
+          <div className="room-rug-hint" />
           <div className="room-baseboard" />
           <div className="room-window-wrap" ref={windowsRef}>
             <div className="room-window-glow" />
@@ -900,6 +1182,25 @@ export default function DeskSection({
               <div className="room-window-sill" />
             </div>
           </div>
+          <div className="room-art">
+            <div className="room-art-canvas" />
+          </div>
+          <div className="room-shelf">
+            <div className="room-shelf-books">
+              <div className="room-book rb1" />
+              <div className="room-book rb2" />
+              <div className="room-book rb3" />
+              <div className="room-book rb4" />
+            </div>
+            <div className="room-plant">
+              <div className="room-plant-pot" />
+              <div className="room-plant-leaf rleaf1" />
+              <div className="room-plant-leaf rleaf2" />
+              <div className="room-plant-leaf rleaf3" />
+            </div>
+          </div>
+          <div className="room-clock" />
+          <div className="room-wall-lamp" />
 
           <div className="scene-texture" />
           <div className="scene-vignette" />
@@ -909,11 +1210,11 @@ export default function DeskSection({
             {displayName ? (
               <>
                 {displayName}
-                <span>'s space</span>
+                <span>'s Space</span>
               </>
             ) : (
               <>
-                your<span> space</span>
+                Your<span> Space</span>
               </>
             )}
           </div>

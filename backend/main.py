@@ -296,27 +296,12 @@ def _prune_used_ws_nonces() -> None:
 
 
 async def _inject_opening_after_delay(hume: HumeClient, text: str) -> None:
-    """Wait briefly for the Hume WS to establish, then inject the intake opening response.
+    """Wait briefly, then inject the intake opening response through Hume EVI.
 
-    After the initial 1.5 s sleep, retries for up to 5 more seconds in 0.5 s increments
-    if the Hume connection is not yet open. Then waits briefly for readiness so
-    session settings (including KORA voice) are applied before speaking.
-    Skips with a warning if still not open/ready.
+    wait_until_ready() internally ensures the Hume connection exists and that
+    session settings are applied before speaking.
     """
     await asyncio.sleep(1.5)
-    if not hume._hume_is_open():
-        waited = 0.0
-        max_wait = 5.0
-        step = 0.5
-        while waited < max_wait and not hume._hume_is_open():
-            await asyncio.sleep(step)
-            waited += step
-        if not hume._hume_is_open():
-            logger.warning(
-                f"Hume WS still not open after {1.5 + max_wait:.1f}s — "
-                f"skipping opening_response injection for session {hume.session_id}"
-            )
-            return
     if not await hume.wait_until_ready(timeout_seconds=4.0):
         logger.warning(
             f"Hume not ready for opening_response injection in session {hume.session_id}"
@@ -491,9 +476,15 @@ async def canvas_snapshot(
 
         snapshot_dict = {
             "strokes_per_second": body.snapshot.strokes_per_second,
+            "stroke_count_window": body.snapshot.stroke_count_window,
             "current_color": body.snapshot.current_color,
+            "current_brush": body.snapshot.current_brush,
+            "brush_usage_window": body.snapshot.brush_usage_window,
+            "avg_stroke_speed_window": body.snapshot.avg_stroke_speed_window,
+            "stroke_samples_window": body.snapshot.stroke_samples_window,
             "colors_used_this_window": body.snapshot.colors_used_this_window,
             "erase_events": [e.dict() for e in body.snapshot.erase_events],
+            "erase_count_window": body.snapshot.erase_count_window,
             "quadrant_distribution": body.snapshot.quadrant_distribution.dict(),
             "last_stroke_timestamp": body.snapshot.last_stroke_timestamp,
             "elapsed_seconds": body.snapshot.elapsed_seconds,

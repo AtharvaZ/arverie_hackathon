@@ -9,14 +9,14 @@ const SAMPLE_RATE = 16000;
 const DEFAULT_OUTPUT_SAMPLE_RATE = 48000;
 const BUFFER_SIZE = 4096;
 const MAX_AUDIO_B64_CHARS = 12000;
-const FILLER_SUPPRESSION_MS = 2500;
+const FILLER_SUPPRESSION_MS = 900;
 
 function isFillerUtterance(value) {
   if (typeof value !== "string") return false;
   const text = value.trim().toLowerCase();
   if (!text) return false;
-  if (text.length > 20) return false;
-  return /^(h+m+|h+mm+|h+mmm+|um+|uh+|mm+|mmm+|huh+|hm+|okay+|ok+|k+)[.!?]*$/.test(
+  if (text.length > 24) return false;
+  return /^(h+m+|h+mm+|h+mmm+|um+|uh+|mm+|mmm+|huh+|hm+|okay+|ok+|k+|right+|yeah+)[.!?]*$/.test(
     text,
   );
 }
@@ -218,9 +218,8 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
       const type = data.type || "";
 
       if (type === "audio_output") {
-        if (Date.now() < suppressAssistantUntilRef.current) {
-          return;
-        }
+        // Keep this suppression window intentionally short to avoid accidental silence.
+        if (Date.now() < suppressAssistantUntilRef.current) return;
         // Queue audio chunk for sequential playback
         const hintedRate = Number(data.sample_rate);
         const decoded = decodeAudioOutput(data.data, hintedRate);
@@ -236,6 +235,7 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
           setIsSpeaking(false);
           return;
         }
+        suppressAssistantUntilRef.current = 0;
         if (text && onTranscript) onTranscript(text);
       } else if (type === "assistant_message") {
         if (Date.now() < suppressAssistantUntilRef.current) {
