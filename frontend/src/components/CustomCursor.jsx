@@ -1,143 +1,220 @@
 import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 
+// Detect touch / mobile once — component returns null if true
+const isTouchDevice =
+  typeof window !== 'undefined' &&
+  ('ontouchstart' in window ||
+    navigator.maxTouchPoints > 0 ||
+    window.innerWidth < 640)
+
+// Leaf SVG paths (symmetric, pointed top & bottom, slight natural tilt applied via GSAP rotation)
+// Inner: 14px × 20px bounding box  Outer: 28px × 40px bounding box
+const INNER_PATH = 'M 0,-10 C 7,-5 7,5 0,10 C -7,5 -7,-5 0,-10 Z'
+const OUTER_PATH = 'M 0,-20 C 14,-10 14,10 0,20 C -14,10 -14,-10 0,-20 Z'
+
 export default function CustomCursor() {
-  const isMobile =
-    typeof window !== 'undefined' &&
-    ('ontouchstart' in window || window.innerWidth < 640)
-  if (isMobile) return null
+  if (isTouchDevice) return null
 
-  const dotRef = useRef(null)
-  const ringRef = useRef(null)
+  const dotRef    = useRef(null) // inner leaf SVG
+  const ringRef   = useRef(null) // outer leaf SVG
+  const ringPath  = useRef(null) // <path> inside outer leaf for stroke/fill animations
+  const brushRef  = useRef(null) // brush preview circle (stays round)
 
+  // ── Mouse tracking ────────────────────────────────────────────────────────
   useEffect(() => {
-    const dot = dotRef.current
-    const ring = ringRef.current
-    if (!dot || !ring) return
+    const dot   = dotRef.current
+    const ring  = ringRef.current
+    const brush = brushRef.current
+    if (!dot || !ring || !brush) return
 
-    // Center elements via xPercent/yPercent so GSAP x/y aren't offset
-    gsap.set([dot, ring], { xPercent: -50, yPercent: -50, opacity: 0 })
+    // Center each element and apply a natural 15° tilt to the leaves
+    gsap.set([dot, ring], { xPercent: -50, yPercent: -50, opacity: 0, rotation: 15 })
+    gsap.set(brush,       { xPercent: -50, yPercent: -50, opacity: 0 })
 
-    const qtRingX = gsap.quickTo(ring, 'x', { duration: 0.35, ease: 'power3.out' })
-    const qtRingY = gsap.quickTo(ring, 'y', { duration: 0.35, ease: 'power3.out' })
+    // Outer leaf + brush preview trail with elastic lag
+    const qtRingX  = gsap.quickTo(ring,  'x', { duration: 0.12, ease: 'power3.out' })
+    const qtRingY  = gsap.quickTo(ring,  'y', { duration: 0.12, ease: 'power3.out' })
+    const qtBrushX = gsap.quickTo(brush, 'x', { duration: 0.12, ease: 'power3.out' })
+    const qtBrushY = gsap.quickTo(brush, 'y', { duration: 0.12, ease: 'power3.out' })
 
     let visible = false
 
     const onMove = (e) => {
-      const x = e.clientX
-      const y = e.clientY
-      gsap.set(dot, { x, y })
-      qtRingX(x)
-      qtRingY(y)
-      // Fade in on first move so there's no (0,0) flash on load
+      const { clientX: x, clientY: y } = e
+      gsap.set(dot, { x, y })   // inner leaf: instant
+      qtRingX(x); qtRingY(y)    // outer leaf: elastic lag
+      qtBrushX(x); qtBrushY(y)  // brush circle: elastic lag
+
       if (!visible) {
         visible = true
         gsap.to([dot, ring], { opacity: 1, duration: 0.3 })
       }
     }
 
-    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mousemove', onMove, { passive: true })
     return () => window.removeEventListener('mousemove', onMove)
   }, [])
 
+  // ── Hover state machine ───────────────────────────────────────────────────
   useEffect(() => {
-    const dot = dotRef.current
-    const ring = ringRef.current
-    if (!dot || !ring) return
+    const dot   = dotRef.current
+    const ring  = ringRef.current
+    const rPath = ringPath.current
+    const brush = brushRef.current
+    if (!dot || !ring || !rPath || !brush) return
+
+    const resetDefault = () => {
+      gsap.to(dot,  { scale: 1, opacity: 1, duration: 0.2, ease: 'power2.out' })
+      gsap.to(ring, { scale: 1, opacity: 1, duration: 0.2, ease: 'power2.out' })
+      gsap.to(rPath, {
+        attr: { stroke: 'rgba(200,160,40,0.35)', strokeWidth: 1, fill: 'transparent' },
+        duration: 0.2,
+      })
+      gsap.to(brush, { opacity: 0, duration: 0.15 })
+    }
 
     const onOver = (e) => {
-      const target = e.target
+      const target     = e.target
       const cursorAttr = target.closest('[data-cursor]')?.getAttribute('data-cursor')
       const isClickable =
         cursorAttr === 'pointer' ||
         target.closest('button, a, [role="button"], input, label, select, textarea') !== null
 
       if (cursorAttr === 'canvas') {
-        gsap.to(dot, { scale: 0, duration: 0.2 })
-        gsap.to(ring, { scale: 0, duration: 0.2 })
+        // Over drawing canvas — hide both leaves, show brush size preview
+        gsap.to([dot, ring], { opacity: 0, duration: 0.15 })
+        gsap.to(brush,       { opacity: 1, duration: 0.2  })
       } else if (isClickable) {
-        gsap.to(dot, { scale: 0, duration: 0.2 })
-        gsap.to(ring, {
-          scale: 1.6,
-          backgroundColor: 'rgba(200, 168, 90, 0.12)',
-          borderColor: 'rgba(200, 168, 90, 1)',
-          duration: 0.25,
-          ease: 'power2.out',
+        // Over clickable — inner leaf vanishes, outer leaf blooms
+        gsap.to(brush, { opacity: 0, duration: 0.15 })
+        gsap.to(dot,   { scale: 0, opacity: 0, duration: 0.2, ease: 'power2.out' })
+        gsap.to(ring,  { scale: 1.3, opacity: 1, duration: 0.2, ease: 'power2.out' })
+        gsap.to(rPath, {
+          attr: { stroke: '#c8a040', strokeWidth: 1.5, fill: 'rgba(200,160,40,0.08)' },
+          duration: 0.2,
         })
       } else {
-        gsap.to(dot, { scale: 1, duration: 0.2 })
-        gsap.to(ring, {
-          scale: 1,
-          backgroundColor: 'rgba(200, 168, 90, 0)',
-          borderColor: 'rgba(200, 168, 90, 0.5)',
-          duration: 0.25,
-        })
+        resetDefault()
       }
     }
 
     window.addEventListener('mouseover', onOver)
-    return () => window.removeEventListener('mouseover', onOver)
+    window.addEventListener('mouseout',  resetDefault)
+    return () => {
+      window.removeEventListener('mouseover', onOver)
+      window.removeEventListener('mouseout',  resetDefault)
+    }
   }, [])
 
+  // ── Click ripple — two leaf-shaped rings fan out like a pebble in water ──
   useEffect(() => {
-    const dot = dotRef.current
-    const ring = ringRef.current
-    if (!dot || !ring) return
+    const onClick = (e) => {
+      const { clientX: x, clientY: y } = e
 
-    const onDown = () => {
-      gsap.to(dot, { scaleX: 1.4, scaleY: 0.6, duration: 0.1 })
-      gsap.to(ring, { scale: 1.4, duration: 0.1 })
+      ;[
+        { scale: 1.5, duration: 0.4,  delay: 0,    opacity: 1   },
+        { scale: 1.8, duration: 0.55, delay: 0.08, opacity: 0.7 },
+      ].forEach(({ scale: toScale, duration, delay, opacity }) => {
+        const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+        el.setAttribute('width',    '28')
+        el.setAttribute('height',   '40')
+        el.setAttribute('viewBox',  '-14 -20 28 40')
+        el.style.cssText = `
+          position: fixed; top: 0; left: 0;
+          pointer-events: none; z-index: 99998;
+          will-change: transform; overflow: visible;
+          transform: translate(calc(${x}px - 50%), calc(${y}px - 50%)) rotate(15deg);
+        `
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+        path.setAttribute('d', OUTER_PATH)
+        path.setAttribute('fill', 'none')
+        path.setAttribute('stroke', '#c8a040')
+        path.setAttribute('stroke-width', '1')
+        el.appendChild(path)
+        document.body.appendChild(el)
+
+        gsap.fromTo(
+          el,
+          { scale: 1, opacity },
+          {
+            scale: toScale, opacity: 0,
+            duration, delay,
+            ease: 'power2.out',
+            onComplete: () => el.remove(),
+          }
+        )
+      })
     }
 
-    const onUp = () => {
-      gsap.to(dot, { scaleX: 1, scaleY: 1, duration: 0.4, ease: 'elastic.out(1, 0.4)' })
-      gsap.to(ring, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.4)' })
-    }
-
-    window.addEventListener('mousedown', onDown)
-    window.addEventListener('mouseup', onUp)
-    return () => {
-      window.removeEventListener('mousedown', onDown)
-      window.removeEventListener('mouseup', onUp)
-    }
+    window.addEventListener('click', onClick)
+    return () => window.removeEventListener('click', onClick)
   }, [])
 
   return (
     <>
-      <style>{`
-        *, *::before, *::after { cursor: none !important; }
-      `}</style>
-      {/* Outer trailing ring */}
-      <div
+      {/* Outer trailing leaf — lags behind for elastic feel */}
+      <svg
         ref={ringRef}
+        width="28"
+        height="40"
+        viewBox="-14 -20 28 40"
         style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: 36,
-          height: 36,
-          borderRadius: '50%',
-          border: '1.5px solid rgba(200, 168, 90, 0.5)',
-          backgroundColor: 'rgba(200, 168, 90, 0)',
-          pointerEvents: 'none',
-          zIndex: 99999,
-          willChange: 'transform',
+          position:     'fixed',
+          top:          0,
+          left:         0,
+          pointerEvents:'none',
+          zIndex:       9999,
+          willChange:   'transform',
+          mixBlendMode: 'difference',
+          overflow:     'visible',
         }}
-      />
-      {/* Inner gold dot */}
-      <div
+      >
+        <path
+          ref={ringPath}
+          d={OUTER_PATH}
+          fill="transparent"
+          stroke="rgba(200,160,40,0.35)"
+          strokeWidth="1"
+        />
+      </svg>
+
+      {/* Inner leaf — snaps to cursor instantly */}
+      <svg
         ref={dotRef}
+        width="14"
+        height="20"
+        viewBox="-7 -10 14 20"
         style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          backgroundColor: 'rgba(200, 168, 90, 1)',
-          pointerEvents: 'none',
-          zIndex: 100000,
-          willChange: 'transform',
+          position:     'fixed',
+          top:          0,
+          left:         0,
+          pointerEvents:'none',
+          zIndex:       10000,
+          willChange:   'transform',
+          mixBlendMode: 'difference',
+          overflow:     'visible',
+        }}
+      >
+        <path d={INNER_PATH} fill="#c8a040" />
+      </svg>
+
+      {/* Brush preview — circular, visible only over the drawing canvas */}
+      <div
+        ref={brushRef}
+        style={{
+          position:        'fixed',
+          top:             0,
+          left:            0,
+          width:           'var(--brush-size, 20px)',
+          height:          'var(--brush-size, 20px)',
+          borderRadius:    '50%',
+          border:          '1px dashed rgba(200,160,40,0.5)',
+          backgroundColor: 'transparent',
+          pointerEvents:   'none',
+          zIndex:          10001,
+          willChange:      'transform',
+          opacity:         0,
         }}
       />
     </>

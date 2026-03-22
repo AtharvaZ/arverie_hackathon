@@ -45,6 +45,11 @@
   padding: 0;
 }
 
+/* Hide the OS cursor on pointer devices — leaf cursor renders instead */
+@media (pointer: fine) {
+  *, *::before, *::after { cursor: none !important; }
+}
+
 /* overflow-x:clip does NOT break position:sticky (unlike overflow:hidden).
    Required so the desk zoom (scale 1.38) never spawns a horizontal scrollbar,
    which would alter layout and break the deskInView() rect calculation. */
