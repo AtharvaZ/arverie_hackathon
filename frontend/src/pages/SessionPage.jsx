@@ -61,6 +61,12 @@ export default function SessionPage() {
 
   async function handleBegin() {
     if (!isReady || stage !== 'setup') return
+
+    if (!session.userId) {
+      console.error('No userId available, cannot start session')
+      return
+    }
+
     setStage('loading')
 
     try {

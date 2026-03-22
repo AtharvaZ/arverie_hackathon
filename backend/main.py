@@ -4,9 +4,10 @@ import logging
 import asyncio
 from functools import partial
 from uuid import uuid4
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from dotenv import load_dotenv
 
 from models import (
@@ -22,6 +23,8 @@ from models import (
     SessionCompleteResponse,
     SessionListResponse,
     SessionSummary,
+    UserMessageRequest,
+    UserMessageResponse,
 )
 from canvas_processor import CanvasEventProcessor
 from claude_calls import (
@@ -30,6 +33,7 @@ from claude_calls import (
     call_vision_description,
     call_reflection_questions,
     call_session_letter,
+    call_user_message,
 )
 from supabase_client import create_session, get_sessions, complete_session, upload_drawing
 from hume_client import HumeClient
@@ -45,14 +49,28 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://localhost:5176",
         "http://localhost:4173",
+        "http://localhost:3000",
         "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+        "http://127.0.0.1:5176",
+        "http://127.0.0.1:3000",
         *_extra_origins,
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    logger.error(f"Request validation error on {request.url.path}: {exc.errors()}")
+    return JSONResponse(status_code=422, content={"error": "Invalid request body", "detail": exc.errors()})
+
 
 # In-memory session state — keyed by session_id
 active_sessions: dict[str, CanvasEventProcessor] = {}
@@ -108,6 +126,28 @@ async def session_intake(body: IntakeRequest) -> IntakeResponse:
         return result
     except Exception as e:
         logger.error(f"Intake failed for session {body.session_id}: {e}")
+        return JSONResponse(status_code=500, content={"error": "Something went wrong"})
+
+
+@app.post("/session/message", response_model=UserMessageResponse)
+async def session_message(body: UserMessageRequest) -> UserMessageResponse:
+    try:
+        intake = session_intake_data.get(body.session_id, {})
+        themes = intake.get("themes", [])
+        loop = asyncio.get_event_loop()
+        response_text = await loop.run_in_executor(
+            None,
+            partial(
+                call_user_message,
+                message=body.message,
+                themes=themes,
+                dialogue_history=body.dialogue_history if isinstance(body.dialogue_history, list) else [],
+            ),
+        )
+        logger.info(f"User message handled for session {body.session_id}")
+        return UserMessageResponse(response=response_text)
+    except Exception as e:
+        logger.error(f"Session message failed for {body.session_id}: {e}")
         return JSONResponse(status_code=500, content={"error": "Something went wrong"})
 
 

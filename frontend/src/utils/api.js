@@ -1,8 +1,12 @@
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 async function request(path, options = {}) {
+  const isGet = !options.method || options.method === 'GET'
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: {
+      ...(isGet ? {} : { 'Content-Type': 'application/json' }),
+      ...options.headers,
+    },
     ...options,
   })
   if (!res.ok) {
