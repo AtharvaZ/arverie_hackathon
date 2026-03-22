@@ -33,24 +33,31 @@ function Footer() {
       icon: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z",
       title: "Expressive Canvas",
       desc: "Pour your feelings onto an open canvas. A distraction-free space where your strokes reflect your inner state.",
+      step: "Step 01",
+      cue: "Externalize what words cannot hold",
       offset: 0,
     },
     {
       icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
       title: "Empathic AI",
       desc: "Receive warm, gentle reflections on your art. Our AI guide helps you unpack your thoughts securely.",
+      step: "Step 02",
+      cue: "Transform strokes into calm understanding",
       offset: -16,
     },
     {
       icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
       title: "Mood Journal",
       desc: "Collect your daily reflections. Turn your emotional history into a timeless, beautifully bound archive.",
+      step: "Step 03",
+      cue: "Build a living map of your emotional story",
       offset: -8,
     },
   ];
 
   return (
     <footer
+      id="landing-footer"
       style={{
         background: "transparent",
         padding: "120px 48px 160px",
@@ -61,6 +68,36 @@ function Footer() {
         alignItems: "center",
       }}
     >
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.6 }}
+        transition={{ duration: 0.45, ease: "easeOut" }}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "8px",
+          borderRadius: "999px",
+          padding: "8px 18px",
+          marginBottom: "20px",
+          background: "rgba(21, 54, 33, 0.4)",
+          border: "1px solid rgba(166, 244, 185, 0.34)",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+        }}
+      >
+        <span style={{ fontSize: "8px", color: "#B5F8C7" }}>◆</span>
+        <span
+          style={{
+            fontFamily: "Cinzel, serif",
+            fontSize: "10px",
+            letterSpacing: "0.22em",
+            color: "rgba(220, 248, 228, 0.92)",
+            textTransform: "uppercase",
+          }}
+        >
+          The Arverie Flow
+        </span>
+      </motion.div>
       <h2
         style={{
           fontFamily: "'Cormorant Garamond', serif",
@@ -104,7 +141,16 @@ function Footer() {
         {footerCards.map((item, i) => (
           <motion.div
             key={i}
-            whileHover={{ y: -8, transition: { duration: 0.28 } }}
+            initial={{ opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.42, ease: "easeOut", delay: i * 0.08 }}
+            whileHover={{
+              y: -8,
+              borderColor: "rgba(183, 255, 204, 0.56)",
+              boxShadow:
+                "0 14px 46px rgba(0,0,0,0.4), 0 0 22px rgba(134, 244, 164, 0.24)",
+            }}
             style={{
               transform: `translateY(${item.offset}px)`,
               background:
@@ -122,8 +168,38 @@ function Footer() {
               alignItems: "center",
               gap: "16px",
               textAlign: "center",
+              transition: "border-color 220ms ease, box-shadow 220ms ease",
             }}
           >
+            <div
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "4px",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "Cinzel, serif",
+                  fontSize: "9px",
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                  color: "rgba(203, 245, 215, 0.82)",
+                }}
+              >
+                {item.step}
+              </span>
+              <span
+                style={{
+                  width: "36px",
+                  height: "1px",
+                  background:
+                    "linear-gradient(to right, rgba(181, 248, 198, 0.7), rgba(181, 248, 198, 0.1))",
+                }}
+              />
+            </div>
             <div
               style={{
                 width: "64px",
@@ -164,11 +240,22 @@ function Footer() {
             </h3>
             <p
               style={{
-                fontFamily: "Cinzel, serif",
-                fontSize: "13px",
-                letterSpacing: "0.08em",
-                lineHeight: 1.7,
-                color: "rgba(218, 244, 224, 0.78)",
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "16px",
+                letterSpacing: "0.04em",
+                color: "rgba(202, 241, 213, 0.82)",
+                margin: "-4px 0 2px",
+              }}
+            >
+              {item.cue}
+            </p>
+            <p
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "20px",
+                letterSpacing: "0.02em",
+                lineHeight: 1.35,
+                color: "rgba(218, 244, 224, 0.84)",
                 margin: 0,
               }}
             >
@@ -217,6 +304,7 @@ export default function LandingPage() {
   const navRef = useRef(null);
   const navEkgRef = useRef(null);
   const navFlatRef = useRef(null);
+  const beginFlowTimersRef = useRef([]);
 
   // Parallax quickTo
   const qtRotX = useRef(null);
@@ -453,6 +541,44 @@ export default function LandingPage() {
     });
   }
 
+  function clearBeginFlowTimers() {
+    beginFlowTimersRef.current.forEach((timerId) =>
+      window.clearTimeout(timerId),
+    );
+    beginFlowTimersRef.current = [];
+  }
+
+  function handleBeginSessionClick() {
+    clearBeginFlowTimers();
+
+    const footerSection = document.getElementById("landing-footer");
+    const deskSection = document.getElementById("desk-section");
+    if (!deskSection) return;
+
+    if (prefersReduced || !footerSection) {
+      deskSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      const triggerId = window.setTimeout(() => {
+        window.dispatchEvent(new Event("arverie:desk-scroll-to-end"));
+      }, 350);
+      beginFlowTimersRef.current.push(triggerId);
+      return;
+    }
+
+    // Two-phase reveal: hero -> footer, then footer -> desk, then auto-play
+    // the desk's scroll-driven animation to its final phase.
+    footerSection.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    const toDeskId = window.setTimeout(() => {
+      deskSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 950);
+
+    const toDeskEndId = window.setTimeout(() => {
+      window.dispatchEvent(new Event("arverie:desk-scroll-to-end"));
+    }, 2200);
+
+    beginFlowTimersRef.current.push(toDeskId, toDeskEndId);
+  }
+
   // ─── Render ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!location.state?.focusDesk) return;
@@ -474,6 +600,13 @@ export default function LandingPage() {
 
     return () => window.clearTimeout(timer);
   }, [location.pathname, location.state, navigate]);
+
+  useEffect(
+    () => () => {
+      clearBeginFlowTimers();
+    },
+    [],
+  );
 
   return (
     <>
@@ -779,7 +912,7 @@ export default function LandingPage() {
             {/* Begin Session button */}
             <motion.button
               ref={btnRef}
-              onClick={() => navigate("/session")}
+              onClick={handleBeginSessionClick}
               whileHover={{
                 backgroundColor: "rgba(70, 161, 95, 0.36)",
                 borderColor: "rgba(181, 255, 201, 0.95)",
@@ -804,13 +937,14 @@ export default function LandingPage() {
                 padding: "14px 46px",
                 cursor: "pointer",
                 pointerEvents: "auto",
-                marginBottom: "36px",
+                marginBottom: "14px",
                 opacity: 0,
                 boxShadow:
                   "0 8px 26px rgba(0,0,0,0.42), inset 0 1px 0 rgba(210, 255, 220, 0.18)",
                 transition:
                   "background-color 0.24s ease, border-color 0.24s ease, color 0.24s ease, box-shadow 0.24s ease, transform 0.24s ease",
               }}
+              aria-label="Begin your Arverie session"
             >
               <span
                 style={{ fontSize: "8px", opacity: 0.78, color: "#B5F8C7" }}
@@ -824,6 +958,20 @@ export default function LandingPage() {
                 ◆
               </span>
             </motion.button>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 3.25, duration: 0.45 }}
+              style={{
+                fontFamily: "Cormorant Garamond, serif",
+                fontSize: "16px",
+                letterSpacing: "0.06em",
+                color: "rgba(205, 240, 214, 0.84)",
+                margin: "0 0 24px",
+              }}
+            >
+              Private, guided, and always yours.
+            </motion.p>
 
             {/* Scroll hint */}
             <div

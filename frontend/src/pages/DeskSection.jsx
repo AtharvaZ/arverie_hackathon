@@ -735,6 +735,35 @@ export default function DeskSection({
     // Set initial tilted state — matches the CSS default transform
     applyAnim(0);
 
+    let autoPlayRafId = 0;
+
+    function easeOutCubic(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    function autoPlayTo(targetProgress, durationMs) {
+      if (autoPlayRafId) window.cancelAnimationFrame(autoPlayRafId);
+      const startProgress = progressRef.current;
+      const delta = targetProgress - startProgress;
+      const startTime = performance.now();
+
+      const tick = (now) => {
+        const t = Math.min((now - startTime) / durationMs, 1);
+        applyAnim(startProgress + delta * easeOutCubic(t));
+        if (t < 1) {
+          autoPlayRafId = window.requestAnimationFrame(tick);
+        } else {
+          autoPlayRafId = 0;
+        }
+      };
+
+      autoPlayRafId = window.requestAnimationFrame(tick);
+    }
+
+    function onScrollDeskToEnd() {
+      autoPlayTo(TOTAL_PHASES, 1500);
+    }
+
     // Use a generous tolerance (10px) so sub-pixel rounding and fractional
     // viewport heights on different devices don't prevent the lock from firing.
     function deskInView() {
@@ -782,11 +811,17 @@ export default function DeskSection({
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("arverie:desk-scroll-to-end", onScrollDeskToEnd);
 
     return () => {
+      if (autoPlayRafId) window.cancelAnimationFrame(autoPlayRafId);
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener(
+        "arverie:desk-scroll-to-end",
+        onScrollDeskToEnd,
+      );
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1052,15 +1087,33 @@ export default function DeskSection({
                   <div className="stat-unit">total</div>
                 </div>
                 {(() => {
-                  const withMood = pastSessions.filter(
-                    (s) => s.mood_checkin != null && s.mood_checkout != null,
+                  const getSessionErasures = (sessionRow) => {
+                    const directCount =
+                      sessionRow?.erasure_count ??
+                      sessionRow?.erasureCount ??
+                      sessionRow?.data?.erasure_count ??
+                      sessionRow?.data?.erasureCount ??
+                      sessionRow?.data?.canvas_summary?.erasure_count ??
+                      sessionRow?.data?.canvas_summary?.erasureCount;
+
+                    if (typeof directCount === "number" && directCount >= 0) {
+                      return directCount;
+                    }
+
+                    const eraseEvents =
+                      sessionRow?.data?.canvas_summary?.erase_events;
+                    if (Array.isArray(eraseEvents)) return eraseEvents.length;
+
+                    return 0;
+                  };
+
+                  const erasuresPerSession =
+                    pastSessions.map(getSessionErasures);
+                  const totalErasures = erasuresPerSession.reduce(
+                    (sum, count) => sum + count,
+                    0,
                   );
-                  const lifts = withMood.map(
-                    (s) => s.mood_checkout - s.mood_checkin,
-                  );
-                  const avgLift = lifts.length
-                    ? lifts.reduce((a, b) => a + b, 0) / lifts.length
-                    : null;
+
                   const barColors = [
                     "#B09070",
                     "#B89868",
@@ -1068,22 +1121,23 @@ export default function DeskSection({
                     "#C4956A",
                     "#C8A84B",
                   ];
-                  const barHeights = lifts.length
-                    ? lifts
-                        .slice(-5)
-                        .map((l) => Math.max(10, Math.min(100, 50 + l * 10)))
-                    : [36, 50, 46, 68, 84];
+                  const recentErasures = erasuresPerSession.slice(-5);
+                  const maxErasures = Math.max(1, ...recentErasures);
+                  const barHeights = recentErasures.length
+                    ? recentErasures.map((count) =>
+                        Math.max(
+                          10,
+                          Math.min(100, (count / maxErasures) * 100),
+                        ),
+                      )
+                    : [16, 24, 18, 30, 20];
                   return (
                     <div className="stat-paper sp-front">
                       <div className="gc-tl" />
                       <div className="gc-br" />
-                      <div className="stat-lbl">avg lift</div>
-                      <div className="stat-val">
-                        {avgLift != null
-                          ? `${avgLift >= 0 ? "+" : ""}${avgLift.toFixed(1)}`
-                          : "—"}
-                      </div>
-                      <div className="stat-unit">mood · per session</div>
+                      <div className="stat-lbl">total erasures</div>
+                      <div className="stat-val">{totalErasures}</div>
+                      <div className="stat-unit">across all sessions</div>
                       <div className="stat-bars">
                         {barHeights.map((h, i) => (
                           <div
