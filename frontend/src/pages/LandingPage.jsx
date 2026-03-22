@@ -340,7 +340,7 @@ export default function LandingPage() {
       <nav
         ref={navRef}
         style={{
-          position: 'fixed', top: 0, left: 0, right: 0, height: '64px',
+          position: 'fixed', top: 0, left: 0, right: 0, height: '52px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0 28px',
           background: 'rgba(242,232,213,0.84)',
@@ -359,12 +359,12 @@ export default function LandingPage() {
           style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
           aria-label={soundOn ? 'Mute ambient' : 'Enable ambient'}
         >
-          <svg width="68" height="24" viewBox="0 0 48 16" fill="none" style={{ overflow: 'visible' }}>
+          <svg width="48" height="20" viewBox="0 0 48 16" fill="none" style={{ overflow: 'visible' }}>
             <path ref={navEkgRef}  d={NAV_EKG_D}  stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             <path ref={navFlatRef} d={NAV_FLAT_D} stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0 }} />
           </svg>
           <span style={{
-            fontFamily: 'Cinzel, serif', fontSize: '11px',
+            fontFamily: 'Cinzel, serif', fontSize: '8px',
             letterSpacing: '0.18em', color: 'var(--gold)', textTransform: 'uppercase',
           }}>
             {soundOn ? 'AMBIENT' : 'SILENT'}

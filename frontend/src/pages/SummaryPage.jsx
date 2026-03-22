@@ -117,7 +117,7 @@ export default function SummaryPage() {
       style={{
         minHeight: "100vh",
         background: "var(--bg)",
-        paddingTop: "64px",
+        paddingTop: "52px",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -140,7 +140,7 @@ export default function SummaryPage() {
           <h2
             style={{
               fontFamily: "IM Fell English, serif",
-              fontSize: "27px",
+              fontSize: "24px",
               fontStyle: "italic",
               marginBottom: "16px",
               color: "var(--text)",
@@ -193,7 +193,7 @@ export default function SummaryPage() {
             <span
               style={{
                 fontFamily: "Cinzel, serif",
-                fontSize: "13px",
+                fontSize: "10px",
                 letterSpacing: "0.15em",
                 color: "var(--text-muted)",
                 marginBottom: "8px",
@@ -265,7 +265,7 @@ export default function SummaryPage() {
                         style={{
                           fontFamily: "IM Fell English, serif",
                           fontStyle: "italic",
-                          fontSize: "21px",
+                          fontSize: "18px",
                           color: "var(--text)",
                           marginBottom: "8px",
                         }}
@@ -285,7 +285,7 @@ export default function SummaryPage() {
                           outline: "none",
                           fontFamily: "IM Fell English, serif",
                           color: "var(--text)",
-                          fontSize: "18px",
+                          fontSize: "15px",
                         }}
                       />
                     </div>
@@ -294,7 +294,7 @@ export default function SummaryPage() {
                         style={{
                           fontFamily: "IM Fell English, serif",
                           fontStyle: "italic",
-                          fontSize: "21px",
+                          fontSize: "18px",
                           color: "var(--text)",
                           marginBottom: "8px",
                         }}
@@ -314,7 +314,7 @@ export default function SummaryPage() {
                           outline: "none",
                           fontFamily: "IM Fell English, serif",
                           color: "var(--text)",
-                          fontSize: "18px",
+                          fontSize: "15px",
                         }}
                       />
                     </div>
@@ -367,7 +367,7 @@ export default function SummaryPage() {
                 <h3
                   style={{
                     fontFamily: "Cinzel, serif",
-                    fontSize: "15px",
+                    fontSize: "12px",
                     letterSpacing: "0.15em",
                     color: "var(--text-muted)",
                     textAlign: "center",
@@ -382,7 +382,7 @@ export default function SummaryPage() {
                     style={{
                       fontFamily: "IM Fell English, serif",
                       fontStyle: "italic",
-                      fontSize: "19px",
+                      fontSize: "16px",
                       lineHeight: 1.8,
                       color: "var(--text)",
                       opacity: 0.85,
@@ -391,7 +391,7 @@ export default function SummaryPage() {
                     <span
                       style={{
                         fontFamily: "Georgia, serif",
-                        fontSize: "23px",
+                        fontSize: "20px",
                         lineHeight: 0,
                         verticalAlign: "-5px",
                         opacity: 0.35,
@@ -404,7 +404,7 @@ export default function SummaryPage() {
                       <span
                         style={{
                           fontFamily: "Georgia, serif",
-                          fontSize: "23px",
+                          fontSize: "20px",
                           lineHeight: 0,
                           verticalAlign: "-5px",
                           opacity: 0.35,

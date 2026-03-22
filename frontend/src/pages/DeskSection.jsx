@@ -326,7 +326,7 @@ const DESK_CSS = `
 }
 .journal-label {
   position:absolute; bottom:-26px; left:50%; transform:translateX(-50%);
-  font-size:8px; color:rgba(90,60,20,.5); white-space:nowrap; letter-spacing:1.5px;
+  font-size:8px; color:rgba(255,235,185,.8); white-space:nowrap; letter-spacing:1.5px;
   opacity:0; transition:opacity .2s; text-transform:uppercase;
 }
 .journal:hover .journal-label { opacity:1; }
@@ -663,7 +663,6 @@ export default function DeskSection() {
                 {/* Big drawing paper */}
                 <div
                   className="big-paper"
-                  data-cursor="pointer"
                   role="button"
                   tabIndex={0}
                   aria-label="Open drawing session"
@@ -687,7 +686,6 @@ export default function DeskSection() {
                 {/* Journal */}
                 <div
                   className="journal"
-                  data-cursor="pointer"
                   role="button"
                   tabIndex={0}
                   aria-label="Open journal"
@@ -705,7 +703,7 @@ export default function DeskSection() {
                     <div className="journal-orn">✦</div>
                     <div className="journal-name">Arverié</div>
                     <div className="journal-rule" />
-                    <div className="journal-sub">journal</div>
+                    <div className="journal-sub">Your Journal</div>
                   </div>
                   <div className="journal-label">open journal</div>
                 </div>
