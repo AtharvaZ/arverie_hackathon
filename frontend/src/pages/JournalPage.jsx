@@ -324,7 +324,7 @@ function PageSpread({ entries, spreadIndex, onFlipForward, onFlipBack, flipping,
 /* ─── JournalPage ─── */
 export default function JournalPage() {
   const navigate = useNavigate()
-  const { session } = useApp()
+  const { session, user } = useApp()
   const [entries, setEntries] = useState(PLACEHOLDER)
   const [phase, setPhase] = useState('cover') // cover | dots | spread
   const [dotCount, setDotCount] = useState(0)
@@ -433,7 +433,7 @@ export default function JournalPage() {
             transition={{ duration: 0.28 }}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
           >
-            <JournalCover userName="Priyanshi" onComplete={onCoverComplete} />
+            <JournalCover userName={user?.name || 'your journal'} onComplete={onCoverComplete} />
           </motion.div>
         )}
 
@@ -445,7 +445,7 @@ export default function JournalPage() {
             exit={{ opacity: 0 }}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
           >
-            <JournalCover userName="Priyanshi" onComplete={() => {}} />
+            <JournalCover userName={user?.name || 'your journal'} onComplete={() => {}} />
             <DotRow activeCount={dotCount} />
           </motion.div>
         )}

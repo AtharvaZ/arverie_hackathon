@@ -8,8 +8,7 @@ const isTouchDevice =
     navigator.maxTouchPoints > 0 ||
     window.innerWidth < 640)
 
-// Leaf SVG paths (symmetric, pointed top & bottom, slight natural tilt applied via GSAP rotation)
-// Inner: 14px × 20px bounding box  Outer: 28px × 40px bounding box
+// Leaf SVG path (symmetric, pointed top & bottom, slight natural tilt applied via GSAP rotation)
 const INNER_PATH = 'M 0,-10 C 7,-5 7,5 0,10 C -7,5 -7,-5 0,-10 Z'
 const OUTER_PATH = 'M 0,-20 C 14,-10 14,10 0,20 C -14,10 -14,-10 0,-20 Z'
 
@@ -17,24 +16,17 @@ export default function CustomCursor() {
   if (isTouchDevice) return null
 
   const dotRef    = useRef(null) // inner leaf SVG
-  const ringRef   = useRef(null) // outer leaf SVG
-  const ringPath  = useRef(null) // <path> inside outer leaf for stroke/fill animations
   const brushRef  = useRef(null) // brush preview circle (stays round)
 
   // ── Mouse tracking ────────────────────────────────────────────────────────
   useEffect(() => {
     const dot   = dotRef.current
-    const ring  = ringRef.current
     const brush = brushRef.current
-    if (!dot || !ring || !brush) return
+    if (!dot || !brush) return
 
-    // Center each element and apply a natural 15° tilt to the leaves
-    gsap.set([dot, ring], { xPercent: -50, yPercent: -50, opacity: 0, rotation: 15 })
-    gsap.set(brush,       { xPercent: -50, yPercent: -50, opacity: 0 })
+    gsap.set(dot,   { xPercent: -50, yPercent: -50, opacity: 0, rotation: 15 })
+    gsap.set(brush, { xPercent: -50, yPercent: -50, opacity: 0 })
 
-    // Outer leaf + brush preview trail with elastic lag
-    const qtRingX  = gsap.quickTo(ring,  'x', { duration: 0.12, ease: 'power3.out' })
-    const qtRingY  = gsap.quickTo(ring,  'y', { duration: 0.12, ease: 'power3.out' })
     const qtBrushX = gsap.quickTo(brush, 'x', { duration: 0.12, ease: 'power3.out' })
     const qtBrushY = gsap.quickTo(brush, 'y', { duration: 0.12, ease: 'power3.out' })
 
@@ -42,13 +34,12 @@ export default function CustomCursor() {
 
     const onMove = (e) => {
       const { clientX: x, clientY: y } = e
-      gsap.set(dot, { x, y })   // inner leaf: instant
-      qtRingX(x); qtRingY(y)    // outer leaf: elastic lag
-      qtBrushX(x); qtBrushY(y)  // brush circle: elastic lag
+      gsap.set(dot, { x, y })
+      qtBrushX(x); qtBrushY(y)
 
       if (!visible) {
         visible = true
-        gsap.to([dot, ring], { opacity: 1, duration: 0.3 })
+        gsap.to(dot, { opacity: 1, duration: 0.3 })
       }
     }
 
@@ -59,18 +50,11 @@ export default function CustomCursor() {
   // ── Hover state machine ───────────────────────────────────────────────────
   useEffect(() => {
     const dot   = dotRef.current
-    const ring  = ringRef.current
-    const rPath = ringPath.current
     const brush = brushRef.current
-    if (!dot || !ring || !rPath || !brush) return
+    if (!dot || !brush) return
 
     const resetDefault = () => {
-      gsap.to(dot,  { scale: 1, opacity: 1, duration: 0.2, ease: 'power2.out' })
-      gsap.to(ring, { scale: 1, opacity: 1, duration: 0.2, ease: 'power2.out' })
-      gsap.to(rPath, {
-        attr: { stroke: 'rgba(200,160,40,0.35)', strokeWidth: 1, fill: 'transparent' },
-        duration: 0.2,
-      })
+      gsap.to(dot,   { scale: 1, opacity: 1, duration: 0.2, ease: 'power2.out' })
       gsap.to(brush, { opacity: 0, duration: 0.15 })
     }
 
@@ -82,18 +66,11 @@ export default function CustomCursor() {
         target.closest('button, a, [role="button"], input, label, select, textarea') !== null
 
       if (cursorAttr === 'canvas') {
-        // Over drawing canvas — hide both leaves, show brush size preview
-        gsap.to([dot, ring], { opacity: 0, duration: 0.15 })
-        gsap.to(brush,       { opacity: 1, duration: 0.2  })
+        gsap.to(dot,   { opacity: 0, duration: 0.15 })
+        gsap.to(brush, { opacity: 1, duration: 0.2  })
       } else if (isClickable) {
-        // Over clickable — inner leaf vanishes, outer leaf blooms
         gsap.to(brush, { opacity: 0, duration: 0.15 })
-        gsap.to(dot,   { scale: 0, opacity: 0, duration: 0.2, ease: 'power2.out' })
-        gsap.to(ring,  { scale: 1.3, opacity: 1, duration: 0.2, ease: 'power2.out' })
-        gsap.to(rPath, {
-          attr: { stroke: '#c8a040', strokeWidth: 1.5, fill: 'rgba(200,160,40,0.08)' },
-          duration: 0.2,
-        })
+        gsap.to(dot,   { scale: 1.4, duration: 0.2, ease: 'power2.out' })
       } else {
         resetDefault()
       }
@@ -153,33 +130,7 @@ export default function CustomCursor() {
 
   return (
     <>
-      {/* Outer trailing leaf — lags behind for elastic feel */}
-      <svg
-        ref={ringRef}
-        width="28"
-        height="40"
-        viewBox="-14 -20 28 40"
-        style={{
-          position:     'fixed',
-          top:          0,
-          left:         0,
-          pointerEvents:'none',
-          zIndex:       9999,
-          willChange:   'transform',
-          mixBlendMode: 'difference',
-          overflow:     'visible',
-        }}
-      >
-        <path
-          ref={ringPath}
-          d={OUTER_PATH}
-          fill="transparent"
-          stroke="rgba(200,160,40,0.35)"
-          strokeWidth="1"
-        />
-      </svg>
-
-      {/* Inner leaf — snaps to cursor instantly */}
+      {/* Leaf — snaps to cursor instantly */}
       <svg
         ref={dotRef}
         width="14"

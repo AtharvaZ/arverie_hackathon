@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import { api } from '../utils/api'
 
 const AppContext = createContext(null)
 
@@ -51,6 +52,15 @@ const defaultSession = {
 export function AppProvider({ children }) {
   const [soundOn, setSoundOn] = useState(true)
   const [session, setSession] = useState(defaultSession)
+  const [pastSessions, setPastSessions] = useState([])
+
+  useEffect(() => {
+    const userId = defaultSession.userId
+    if (!userId) return
+    api.getSessions(userId)
+      .then((data) => { if (data?.sessions?.length) setPastSessions(data.sessions) })
+      .catch(() => {})
+  }, [])
 
   const resetSession = useCallback(() => {
     setSession((s) => ({
@@ -74,6 +84,7 @@ export function AppProvider({ children }) {
         session, setSession,
         resetSession,
         appendDialogue,
+        pastSessions,
       }}
     >
       {children}

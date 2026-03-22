@@ -91,7 +91,7 @@ export default function SummaryPage() {
 
       if (session.sessionId && session.userId) {
         const res = await api.completeSession(session.sessionId, session.userId, {
-          moodCheckout: moodOut.trim() || session.mood || '',
+          moodCheckout: moodOut.trim() || session.mood || null,
           userAnswers: answers,
           durationSeconds: durationSec,
           fullSessionData,
