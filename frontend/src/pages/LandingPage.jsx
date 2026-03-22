@@ -288,6 +288,8 @@ export default function LandingPage() {
   const { soundOn, setSoundOn } = useApp();
   const [deskInView, setDeskInView] = useState(false);
   const [showHeroOverlay, setShowHeroOverlay] = useState(true);
+  const [heroOverlayReady, setHeroOverlayReady] = useState(false);
+  const [showLowerSections, setShowLowerSections] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -327,6 +329,31 @@ export default function LandingPage() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  useEffect(() => {
+    if (prefersReduced) {
+      setHeroOverlayReady(false);
+      return;
+    }
+    const timerId = window.setTimeout(() => {
+      setHeroOverlayReady(true);
+    }, 180);
+    return () => window.clearTimeout(timerId);
+  }, []);
+
+  useEffect(() => {
+    if (showLowerSections) return;
+
+    const revealThreshold = Math.max(120, window.innerHeight * 0.2);
+    const onScroll = () => {
+      if (window.scrollY < revealThreshold) return;
+      setShowLowerSections(true);
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [showLowerSections]);
 
   // ─── Body class for landing page background ─────────────────────────────
   useEffect(() => {
@@ -565,33 +592,38 @@ export default function LandingPage() {
 
   function handleBeginSessionClick() {
     clearBeginFlowTimers();
+    setShowLowerSections(true);
 
-    const footerSection = document.getElementById("landing-footer");
-    const deskSection = document.getElementById("desk-section");
-    if (!deskSection) return;
+    const runBeginFlow = () => {
+      const footerSection = document.getElementById("landing-footer");
+      const deskSection = document.getElementById("desk-section");
+      if (!deskSection) return;
 
-    if (prefersReduced || !footerSection) {
-      deskSection.scrollIntoView({ behavior: "smooth", block: "start" });
-      const triggerId = window.setTimeout(() => {
+      if (prefersReduced || !footerSection) {
+        deskSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        const triggerId = window.setTimeout(() => {
+          window.dispatchEvent(new Event("arverie:desk-scroll-to-end"));
+        }, 350);
+        beginFlowTimersRef.current.push(triggerId);
+        return;
+      }
+
+      // Two-phase reveal: hero -> footer, then footer -> desk, then auto-play
+      // the desk's scroll-driven animation to its final phase.
+      footerSection.scrollIntoView({ behavior: "smooth", block: "start" });
+
+      const toDeskId = window.setTimeout(() => {
+        deskSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 950);
+
+      const toDeskEndId = window.setTimeout(() => {
         window.dispatchEvent(new Event("arverie:desk-scroll-to-end"));
-      }, 350);
-      beginFlowTimersRef.current.push(triggerId);
-      return;
-    }
+      }, 2200);
 
-    // Two-phase reveal: hero -> footer, then footer -> desk, then auto-play
-    // the desk's scroll-driven animation to its final phase.
-    footerSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      beginFlowTimersRef.current.push(toDeskId, toDeskEndId);
+    };
 
-    const toDeskId = window.setTimeout(() => {
-      deskSection.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 950);
-
-    const toDeskEndId = window.setTimeout(() => {
-      window.dispatchEvent(new Event("arverie:desk-scroll-to-end"));
-    }, 2200);
-
-    beginFlowTimersRef.current.push(toDeskId, toDeskEndId);
+    window.requestAnimationFrame(runBeginFlow);
   }
 
   // ─── Render ──────────────────────────────────────────────────────────────
@@ -717,7 +749,7 @@ export default function LandingPage() {
         {/* ── Fixed background image ── */}
         <div className="landscape-vivid" />
         {/* ── Fixed p5 canvas (dulling overlay) ── */}
-        {!prefersReduced && showHeroOverlay && (
+        {!prefersReduced && heroOverlayReady && showHeroOverlay && (
           <div
             style={{
               position: "fixed",
@@ -1129,10 +1161,21 @@ export default function LandingPage() {
           </div>
         </div>
         <Footer enableInteractivity={!isMobileViewport} />
-        <DeskSection
-          sectionId="desk-section"
-          onDeskInViewChange={setDeskInView}
-        />
+        <div
+          style={{
+            opacity: showLowerSections ? 1 : 0,
+            transform: showLowerSections
+              ? "translateY(0px)"
+              : "translateY(36px)",
+            transition: "opacity 520ms ease, transform 520ms ease",
+            pointerEvents: showLowerSections ? "auto" : "none",
+          }}
+        >
+          <DeskSection
+            sectionId="desk-section"
+            onDeskInViewChange={setDeskInView}
+          />
+        </div>
       </div>
     </>
   );

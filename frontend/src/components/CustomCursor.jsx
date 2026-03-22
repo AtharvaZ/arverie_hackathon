@@ -37,11 +37,15 @@ export default function CustomCursor() {
     });
 
     let visible = false;
+    let rafId = 0;
+    let nextX = 0;
+    let nextY = 0;
 
-    const moveCursor = (x, y) => {
-      gsap.set(dot, { x, y });
-      qtBrushX(x);
-      qtBrushY(y);
+    const flushCursorMove = () => {
+      rafId = 0;
+      gsap.set(dot, { x: nextX, y: nextY });
+      qtBrushX(nextX);
+      qtBrushY(nextY);
 
       if (!visible) {
         visible = true;
@@ -49,22 +53,30 @@ export default function CustomCursor() {
       }
     };
 
+    const queueCursorMove = (x, y) => {
+      nextX = x;
+      nextY = y;
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(flushCursorMove);
+    };
+
     const onMove = (e) => {
       const { clientX: x, clientY: y } = e;
-      moveCursor(x, y);
+      queueCursorMove(x, y);
     };
 
     const onCanvasCursorMove = (e) => {
       const x = e?.detail?.x;
       const y = e?.detail?.y;
       if (typeof x !== "number" || typeof y !== "number") return;
-      moveCursor(x, y);
+      queueCursorMove(x, y);
     };
 
-    window.addEventListener("mousemove", onMove, { passive: true });
+    window.addEventListener("pointermove", onMove, { passive: true });
     window.addEventListener("arverie:cursor-move", onCanvasCursorMove);
     return () => {
-      window.removeEventListener("mousemove", onMove);
+      if (rafId) window.cancelAnimationFrame(rafId);
+      window.removeEventListener("pointermove", onMove);
       window.removeEventListener("arverie:cursor-move", onCanvasCursorMove);
     };
   }, []);
@@ -102,11 +114,15 @@ export default function CustomCursor() {
       }
     };
 
+    const onOut = (e) => {
+      if (!e.relatedTarget) resetDefault();
+    };
+
     window.addEventListener("mouseover", onOver);
-    window.addEventListener("mouseout", resetDefault);
+    window.addEventListener("mouseout", onOut);
     return () => {
       window.removeEventListener("mouseover", onOver);
-      window.removeEventListener("mouseout", resetDefault);
+      window.removeEventListener("mouseout", onOut);
     };
   }, []);
 

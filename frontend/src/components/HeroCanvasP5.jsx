@@ -5,6 +5,7 @@ function sketch(p) {
   const MAX_BLOBS = 120;
   const SAFARI_SPAWN_INTERVAL_MS = 42;
   let lastSafariSpawnAt = 0;
+  let animating = false;
   const isSafari =
     typeof navigator !== "undefined" &&
     /safari/i.test(navigator.userAgent) &&
@@ -17,6 +18,8 @@ function sketch(p) {
     p.createCanvas(p.windowWidth, p.windowHeight);
     p.noStroke();
     p.canvas.style.pointerEvents = "none";
+    p.noLoop();
+    p.redraw();
   };
 
   p.draw = () => {
@@ -97,7 +100,18 @@ function sketch(p) {
     // Reset back to normal for the next frame
     p.drawingContext.filter = "none";
     p.drawingContext.globalCompositeOperation = "source-over";
+
+    if (blobs.length === 0 && animating) {
+      animating = false;
+      p.noLoop();
+    }
   };
+
+  function ensureAnimating() {
+    if (animating) return;
+    animating = true;
+    p.loop();
+  }
 
   function spawnBlob(x, y) {
     if (isSafari) {
@@ -118,6 +132,7 @@ function sketch(p) {
       noiseOffset: p.random(1000),
       age: 0,
     });
+    ensureAnimating();
   }
 
   p.mouseMoved = () => {
@@ -133,6 +148,7 @@ function sketch(p) {
 
   p.windowResized = () => {
     p.resizeCanvas(p.windowWidth, p.windowHeight);
+    if (!animating) p.redraw();
   };
 }
 
