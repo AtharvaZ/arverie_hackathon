@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 
 const EKG_PATH = 'M0,8 L6,8 L9,2 L12,14 L15,5 L18,11 L21,8 L48,8'
@@ -6,6 +7,7 @@ const FLAT_PATH = 'M0,8 L48,8'
 
 export default function TopBar({ style, children }) {
   const { soundOn, setSoundOn } = useApp()
+  const navigate = useNavigate()
 
   return (
     <div
@@ -27,12 +29,14 @@ export default function TopBar({ style, children }) {
     >
       {/* Wordmark */}
       <span
+        onClick={() => navigate('/')}
         style={{
           fontFamily: 'Cinzel, serif',
           fontSize: '16px',
           color: '#1a3a30',
           letterSpacing: '0.12em',
           fontWeight: 500,
+          cursor: 'pointer',
         }}
       >
         Arverié
