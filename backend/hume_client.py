@@ -29,6 +29,9 @@ RECENT_USER_AUDIO_WINDOW_SECONDS = float(
 ASSISTANT_SPEAKING_TIMEOUT_SECONDS = float(
     os.getenv("ASSISTANT_SPEAKING_TIMEOUT_SECONDS", "12.0")
 )
+INJECTION_REPEAT_WINDOW_SECONDS = float(os.getenv("INJECTION_REPEAT_WINDOW_SECONDS", "45"))
+IDLE_CHECKIN_INTERVAL_SECONDS = float(os.getenv("IDLE_CHECKIN_INTERVAL_SECONDS", "140"))
+IDLE_CHECKIN_MIN_SILENCE_SECONDS = float(os.getenv("IDLE_CHECKIN_MIN_SILENCE_SECONDS", "35"))
 
 HUME_SYSTEM_PROMPT = """You are Arverie, a quiet drawing companion.
 
@@ -43,6 +46,9 @@ Voice style:
 Turn-taking:
 - Do not jump in after tiny acknowledgment cues (for example: "hmm", "mm", "okay", "right", "yeah") unless the user clearly asks for a response.
 - Do respond when the user gives a meaningful prompt or invitation (for example: "guess what I am making", direct questions, clear requests).
+- Do not keep chaining follow-up questions.
+- Prefer brief statements tied to what is happening on the canvas right now.
+- Ask at most one short question occasionally, and only when the user clearly invites one.
 
 Grounding:
 - Only use: the user's recent words, injected canvas trigger text, or neutral present-moment observations.
@@ -65,9 +71,9 @@ class HumeClient:
         self.hume_ws: Optional[Any] = None  # websockets.ClientConnection (v13+) or WebSocketClientProtocol (v<13)
         self.client_ws = None  # FastAPI WebSocket from the frontend
         self.user_is_speaking: bool = False
+        self.assistant_is_speaking: bool = False
         self.injection_queue: list[str] = []
         self.dialogue_history: list[dict] = []
-        self.assistant_is_speaking: bool = False
         self._running: bool = False
         self._last_audio_input_time: float = 0.0
         self._last_assistant_event_time: float = 0.0
@@ -75,7 +81,72 @@ class HumeClient:
         self._hume_connected_at: float = 0.0
         self._last_ready_wait_log_at: float = 0.0
         self._suppress_injections_until: float = 0.0
+        self._last_injection_text: str = ""
+        self._last_injection_time: float = 0.0
+        self._last_user_message_time: float = 0.0
+        self._last_idle_checkin_time: float = 0.0
+        self._idle_checkin_index: int = 0
         self._audio_limiter = SlidingWindowRateLimiter()
+
+    def _next_idle_checkin_text(self) -> str:
+        options = [
+            "i'm here with you. stay with the part of the drawing that has your attention.",
+            "take your time. you can keep following what your hand wants to do.",
+            "no rush. you can stay with this mark for as long as you need.",
+        ]
+        text = options[self._idle_checkin_index % len(options)]
+        self._idle_checkin_index += 1
+        return text
+
+    def _should_send_idle_checkin(self, now: float) -> bool:
+        if not self._hume_is_open() or not self._hume_ready_event.is_set():
+            return False
+        if self.user_is_speaking or self.assistant_is_speaking:
+            return False
+
+        last_user_activity = max(self._last_audio_input_time, self._last_user_message_time)
+        if last_user_activity <= 0:
+            return False
+        if now - last_user_activity < IDLE_CHECKIN_MIN_SILENCE_SECONDS:
+            return False
+
+        # Keep idle check-ins sparse and avoid colliding with any recent injection.
+        last_assistant_activity = max(self._last_injection_time, self._last_idle_checkin_time)
+        if last_assistant_activity > 0 and now - last_assistant_activity < IDLE_CHECKIN_INTERVAL_SECONDS:
+            return False
+
+        return True
+
+    async def _maybe_send_idle_checkin(self) -> None:
+        now = time.time()
+        if not self._should_send_idle_checkin(now):
+            return
+        idle_text = self._next_idle_checkin_text()
+        await self.inject_trigger(idle_text)
+        self._last_idle_checkin_time = now
+
+    def _normalize_injection_text(self, text: str) -> str:
+        normalized = (text or "").strip().lower()
+        normalized = re.sub(r"[^a-z0-9\s]", "", normalized)
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        return normalized
+
+    def _is_repeated_injection(self, text: str) -> bool:
+        normalized = self._normalize_injection_text(text)
+        if not normalized:
+            return False
+
+        queued_tail = self.injection_queue[-1] if self.injection_queue else ""
+        if self._normalize_injection_text(queued_tail) == normalized:
+            return True
+
+        within_repeat_window = (
+            self._last_injection_time > 0
+            and (time.time() - self._last_injection_time) <= INJECTION_REPEAT_WINDOW_SECONDS
+        )
+        if within_repeat_window and self._normalize_injection_text(self._last_injection_text) == normalized:
+            return True
+        return False
 
     def _is_brief_filler_utterance(self, text: str) -> bool:
         cleaned = (text or "").strip().lower()
@@ -225,6 +296,9 @@ class HumeClient:
         if not safe_text:
             logger.warning(f"Skipped empty injection text for session {self.session_id}")
             return False
+        if self._is_repeated_injection(safe_text):
+            logger.info(f"Skipped repeated injection for session {self.session_id}: {safe_text[:50]}")
+            return False
 
         logger.info(f"[inject] inject_trigger called, hume_ws={'open' if self._hume_is_open() else 'None/closed'}")
         if not await self._ensure_hume_connected():
@@ -250,6 +324,8 @@ class HumeClient:
             try:
                 msg = {"type": "assistant_input", "text": text}
                 await self.hume_ws.send(json.dumps(msg))
+                self._last_injection_text = text
+                self._last_injection_time = time.time()
                 logger.info(f"Injected trigger to Hume: {text[:50]}")
                 return True
             except Exception as e:
@@ -411,6 +487,7 @@ class HumeClient:
                                         self.user_is_speaking = True
                                         self.assistant_is_speaking = False
                                     if msg_type == "user_message":
+                                        self._last_user_message_time = time.time()
                                         message_text = ""
                                         if isinstance(data.get("message"), dict):
                                             message_text = str(data.get("message", {}).get("content") or "")
@@ -426,6 +503,9 @@ class HumeClient:
                                     if msg_type == "assistant_message":
                                         self.assistant_is_speaking = True
                                         self._last_assistant_event_time = time.time()
+                                    if msg_type == "audio_output":
+                                        self.assistant_is_speaking = True
+                                        self._last_assistant_event_time = time.time()
                                     if msg_type == "assistant_end":
                                         self.user_is_speaking = False
                                         self.assistant_is_speaking = False
@@ -437,6 +517,7 @@ class HumeClient:
                                         and time.time() >= self._suppress_injections_until
                                     ):
                                         await self._flush_injection_queue()
+                                    await self._maybe_send_idle_checkin()
                                 except Exception:
                                     pass
                     # hume_ws closed naturally — exit loop
@@ -454,6 +535,7 @@ class HumeClient:
                         and time.time() >= self._suppress_injections_until
                     ):
                         await self._flush_injection_queue()
+                    await self._maybe_send_idle_checkin()
                     await asyncio.sleep(0.1)
         except Exception as e:
             logger.error(f"Hume to client proxy error for session {self.session_id}: {e}")

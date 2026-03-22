@@ -128,6 +128,65 @@ class HumeClientProxyTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(client.assistant_is_speaking)
         self.assertEqual(client._last_assistant_event_time, 0.0)
 
+    async def test_inject_trigger_skips_repeated_text(self) -> None:
+        client = HumeClient("session-8")
+        fake_hume = _FakeHumeWS()
+        client.hume_ws = fake_hume
+        client._hume_ready_event.set()
+
+        async def _ensure_connected() -> bool:
+            return True
+
+        client._ensure_hume_connected = _ensure_connected  # type: ignore[method-assign]
+
+        await client.inject_trigger("you came back to that area again")
+        await client.inject_trigger("you came back to that area again")
+
+        self.assertEqual(len(fake_hume.sent), 1)
+        forwarded = json.loads(fake_hume.sent[0])
+        self.assertEqual(forwarded.get("type"), "assistant_input")
+        self.assertEqual(forwarded.get("text"), "you came back to that area again")
+
+    async def test_inject_trigger_queues_while_assistant_speaking(self) -> None:
+        client = HumeClient("session-9")
+        fake_hume = _FakeHumeWS()
+        client.hume_ws = fake_hume
+        client.assistant_is_speaking = True
+
+        async def _ensure_connected() -> bool:
+            return True
+
+        client._ensure_hume_connected = _ensure_connected  # type: ignore[method-assign]
+
+        await client.inject_trigger("stay with that part")
+
+        self.assertEqual(len(fake_hume.sent), 0)
+        self.assertEqual(client.injection_queue, ["stay with that part"])
+
+    async def test_should_send_idle_checkin_when_quiet_long_enough(self) -> None:
+        client = HumeClient("session-10")
+        client.hume_ws = _FakeHumeWS()
+        client._hume_ready_event.set()
+        client.user_is_speaking = False
+        client.assistant_is_speaking = False
+        now = 1000.0
+        client._last_audio_input_time = now - 50.0
+        client._last_user_message_time = 0.0
+        client._last_injection_time = now - 300.0
+        client._last_idle_checkin_time = 0.0
+
+        self.assertTrue(client._should_send_idle_checkin(now))
+
+    async def test_should_not_send_idle_checkin_when_recent_user_activity(self) -> None:
+        client = HumeClient("session-11")
+        client.hume_ws = _FakeHumeWS()
+        client._hume_ready_event.set()
+        now = 1000.0
+        client._last_audio_input_time = now - 5.0
+        client._last_injection_time = now - 300.0
+
+        self.assertFalse(client._should_send_idle_checkin(now))
+
 
 if __name__ == "__main__":
     unittest.main()
