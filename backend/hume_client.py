@@ -4,6 +4,7 @@ import json
 import asyncio
 import logging
 import re
+from urllib.parse import urlencode
 from typing import Optional, Any
 import websockets
 from dotenv import load_dotenv
@@ -21,44 +22,33 @@ logger.setLevel(logging.DEBUG)
 MAX_INJECTION_CHARS = 220
 MAX_WS_AUDIO_B64_CHARS = int(os.getenv("MAX_WS_AUDIO_B64_CHARS", "12000"))
 MAX_WS_AUDIO_PACKETS_PER_SECOND = int(os.getenv("MAX_WS_AUDIO_PACKETS_PER_SECOND", "80"))
+FILLER_INJECTION_PAUSE_SECONDS = float(os.getenv("FILLER_INJECTION_PAUSE_SECONDS", "1.2"))
 
 HUME_SYSTEM_PROMPT = """You are Arverie, a quiet drawing companion.
 
-Your job is to support the person while they draw, with very little speech.
+Speak very sparingly.
+- Prefer 1 short sentence. Max 2 sentences.
+- If you are unsure, choose silence.
 
-Core behavior:
-- Speak only when the user directly speaks to you or when a canvas trigger is injected.
-- Keep replies short: 1 sentence preferred, max 2 sentences.
-- If unsure what to say, choose silence.
+Voice style:
+- Calm, gentle, and a little slower than normal conversation.
+- Soft, warm, simple wording.
 
-Grounding and anti-hallucination rules:
-- Only reference things that appear in one of these sources:
-    1) the user's exact recent words,
-    2) injected canvas trigger text,
-    3) neutral present-moment observations (for example: "you're here with it").
-- Never invent facts, memories, events, symbols, colors, or emotions not explicitly present.
-- Never claim certainty about the user's inner state.
-- If context is thin, use a neutral line and stop.
+Turn-taking:
+- Do not jump in after tiny acknowledgment cues (for example: "hmm", "mm", "okay", "right", "yeah") unless the user clearly asks for a response.
+- Do respond when the user gives a meaningful prompt or invitation (for example: "guess what I am making", direct questions, clear requests).
 
-Style:
-- Warm, calm, human, non-clinical.
-- No advice, diagnosis, interpretation, or analysis.
-- No stage directions, brackets, roleplay, or metadata.
-- No lists, no explanations of your process.
+Grounding:
+- Only use: the user's recent words, injected canvas trigger text, or neutral present-moment observations.
+- Do not invent facts, hidden meanings, memories, symbols, or emotions.
 
-Conversation policy:
-- If the user shares pain: acknowledge briefly in one sentence, then pause.
-- If the user asks factual questions you cannot verify: say you are not sure, then gently return to drawing.
-- If the user talks off-topic: one short acknowledgment, optional soft bridge back to the canvas, then stop.
-
-Canvas trigger policy:
-- Treat trigger injections as observational hints, not facts beyond what is written.
-- Respond in one natural sentence that stays close to the trigger wording.
+Safety and scope:
+- No diagnosis, analysis, advice, roleplay, brackets, or meta commentary.
+- If the user shares pain, acknowledge briefly and pause.
+- If factual certainty is unknown, say you are not sure, then gently return to the drawing context.
 
 Crisis protocol:
-Use crisis language ONLY when the user expresses explicit self-harm intent, plan, means, or immediate danger.
-Do NOT use crisis language for general distress like: "rough week", "stressed", "anxious", "down", "overwhelmed", or "tired".
-For general distress, respond with one calm validating sentence and stay with the drawing context.
+Use crisis language ONLY for explicit self-harm intent, plan, means, or immediate danger.
 If and only if explicit self-harm intent/plan is present, say exactly:
 "I hear that things feel very heavy right now. Please reach out to the 988 Suicide and Crisis Lifeline - call or text 988. I'm still here with you."""
 
@@ -76,7 +66,21 @@ class HumeClient:
         self._hume_ready_event: asyncio.Event = asyncio.Event()
         self._hume_connected_at: float = 0.0
         self._last_ready_wait_log_at: float = 0.0
+        self._suppress_injections_until: float = 0.0
         self._audio_limiter = SlidingWindowRateLimiter()
+
+    def _is_brief_filler_utterance(self, text: str) -> bool:
+        cleaned = (text or "").strip().lower()
+        if not cleaned:
+            return False
+        if len(cleaned) > 24:
+            return False
+        return bool(
+            re.fullmatch(
+                r"(h+m+|h+mm+|h+mmm+|um+|uh+|mm+|mmm+|huh+|hm+|okay+|ok+|k+|right+|yeah+)[.!?]*",
+                cleaned,
+            )
+        )
 
     def _hume_is_open(self) -> bool:
         """Check if the Hume WebSocket is open — compatible with websockets v12 and v13+."""
@@ -131,12 +135,16 @@ class HumeClient:
             logger.error("HUME_API_KEY is not set — Hume EVI will not connect")
             return False
 
-        hume_url = f"wss://api.hume.ai/v0/evi/chat?api_key={api_key}"
+        query = {"api_key": api_key}
+        config_id = os.getenv("HUME_CONFIG_ID", "").strip()
+        if config_id:
+            query["config_id"] = config_id
+        hume_url = f"wss://api.hume.ai/v0/evi/chat?{urlencode(query)}"
 
         try:
             logger.info(
                 "Connecting to Hume EVI... url (redacted key): "
-                "wss://api.hume.ai/v0/evi/chat?api_key=*** (config_id disabled)"
+                f"wss://api.hume.ai/v0/evi/chat?api_key=*** (config_id={'set' if config_id else 'not-set'})"
             )
             self.hume_ws = await websockets.connect(hume_url)
             self._hume_connected_at = time.time()
@@ -362,9 +370,26 @@ class HumeClient:
                                     # Use explicit Hume turn events for speaking state.
                                     if msg_type == "user_interruption":
                                         self.user_is_speaking = True
-                                    if msg_type in ("user_message", "assistant_end"):
+                                    if msg_type == "user_message":
+                                        message_text = ""
+                                        if isinstance(data.get("message"), dict):
+                                            message_text = str(data.get("message", {}).get("content") or "")
+                                        if self._is_brief_filler_utterance(message_text):
+                                            self._suppress_injections_until = time.time() + FILLER_INJECTION_PAUSE_SECONDS
+                                            logger.debug(
+                                                "Brief filler cue detected; delaying queued injections for %.2fs",
+                                                FILLER_INJECTION_PAUSE_SECONDS,
+                                            )
+                                        else:
+                                            self._suppress_injections_until = 0.0
                                         self.user_is_speaking = False
-                                    if not self.user_is_speaking and self.injection_queue:
+                                    if msg_type == "assistant_end":
+                                        self.user_is_speaking = False
+                                    if (
+                                        not self.user_is_speaking
+                                        and self.injection_queue
+                                        and time.time() >= self._suppress_injections_until
+                                    ):
                                         await self._flush_injection_queue()
                                 except Exception:
                                     pass
@@ -375,7 +400,11 @@ class HumeClient:
                 else:
                     # Hume not yet connected — also check timeout in the polling branch
                     self._check_speaking_timeout()
-                    if not self.user_is_speaking and self.injection_queue:
+                    if (
+                        not self.user_is_speaking
+                        and self.injection_queue
+                        and time.time() >= self._suppress_injections_until
+                    ):
                         await self._flush_injection_queue()
                     await asyncio.sleep(0.1)
         except Exception as e:

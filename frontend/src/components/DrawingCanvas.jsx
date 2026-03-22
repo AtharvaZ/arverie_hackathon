@@ -29,6 +29,21 @@ const CURSOR = {
 // On pointerUp the live canvas is composited onto the permanent canvas at user opacity.
 const LIVE_BRUSHES = new Set(["pencil", "ink"]);
 
+function sampleStrokePoints(points, maxSamples = 12) {
+  if (!Array.isArray(points) || points.length === 0) return [];
+  if (points.length <= maxSamples) {
+    return points.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+  }
+  const step = (points.length - 1) / (maxSamples - 1);
+  const sampled = [];
+  for (let i = 0; i < maxSamples; i += 1) {
+    const idx = Math.round(i * step);
+    const p = points[idx];
+    sampled.push({ x: Math.round(p.x), y: Math.round(p.y) });
+  }
+  return sampled;
+}
+
 const DrawingCanvas = forwardRef(function DrawingCanvas(
   { brush, color, size, opacity, onStroke, onErase },
   ref,
@@ -232,12 +247,23 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
 
     const pts = strokePoints.current;
     if (pts.length > 1) {
+      const strokeEnd = Date.now();
+      const durationMs = Math.max(
+        strokeEnd - (strokeStart.current || strokeEnd),
+        1,
+      );
       const xs = pts.map((p) => p.x);
       const ys = pts.map((p) => p.y);
       const minX = Math.min(...xs);
       const maxX = Math.max(...xs);
       const minY = Math.min(...ys);
       const maxY = Math.max(...ys);
+      let pathLength = 0;
+      for (let i = 1; i < pts.length; i += 1) {
+        const a = pts[i - 1];
+        const b = pts[i];
+        pathLength += Math.hypot(b.x - a.x, b.y - a.y);
+      }
       const centroid = {
         x: xs.reduce((a, b) => a + b, 0) / xs.length,
         y: ys.reduce((a, b) => a + b, 0) / ys.length,
@@ -252,6 +278,10 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
         bounds: { minX, minY, maxX, maxY },
         centroid,
         pointCount: pts.length,
+        durationMs,
+        pathLength,
+        avgSpeedPxPerSec: Number(((pathLength / durationMs) * 1000).toFixed(2)),
+        pointSamples: sampleStrokePoints(pts),
       });
     }
 

@@ -12,7 +12,7 @@ import { motion } from "framer-motion";
 import { gsap } from "gsap";
 import { useApp } from "../context/AppContext";
 import logoSvgRaw from "../assets/logo.svg?raw";
-import heroBg from "../assets/hero_background.png";
+import heroBg from "../assets/hero_background.jpeg";
 import DeskSection from "./DeskSection";
 
 const HeroCanvasP5 = React.lazy(() => import("../components/HeroCanvasP5"));
@@ -28,8 +28,36 @@ const prefersReduced =
 
 // ─── Footer ──────────────────────────────────────────────────────────────────
 function Footer() {
+  const footerCards = [
+    {
+      icon: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z",
+      title: "Expressive Canvas",
+      desc: "Pour your feelings onto an open canvas. A distraction-free space where your strokes reflect your inner state.",
+      step: "Step 01",
+      cue: "Externalize what words cannot hold",
+      offset: 0,
+    },
+    {
+      icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
+      title: "Empathic AI",
+      desc: "Receive warm, gentle reflections on your art. Our AI guide helps you unpack your thoughts securely.",
+      step: "Step 02",
+      cue: "Transform strokes into calm understanding",
+      offset: -16,
+    },
+    {
+      icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
+      title: "Mood Journal",
+      desc: "Collect your daily reflections. Turn your emotional history into a timeless, beautifully bound archive.",
+      step: "Step 03",
+      cue: "Build a living map of your emotional story",
+      offset: -8,
+    },
+  ];
+
   return (
     <footer
+      id="landing-footer"
       style={{
         background: "transparent",
         padding: "120px 48px 160px",
@@ -40,21 +68,66 @@ function Footer() {
         alignItems: "center",
       }}
     >
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.6 }}
+        transition={{ duration: 0.45, ease: "easeOut" }}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "8px",
+          borderRadius: "999px",
+          padding: "8px 18px",
+          marginBottom: "20px",
+          background: "rgba(21, 54, 33, 0.4)",
+          border: "1px solid rgba(166, 244, 185, 0.34)",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+        }}
+      >
+        <span style={{ fontSize: "8px", color: "#B5F8C7" }}>◆</span>
+        <span
+          style={{
+            fontFamily: "Cinzel, serif",
+            fontSize: "10px",
+            letterSpacing: "0.22em",
+            color: "rgba(220, 248, 228, 0.92)",
+            textTransform: "uppercase",
+          }}
+        >
+          The Arverie Flow
+        </span>
+      </motion.div>
       <h2
         style={{
           fontFamily: "'Cormorant Garamond', serif",
           fontSize: "clamp(28px, 4vw, 48px)",
           fontStyle: "italic",
-          letterSpacing: "8px",
-          color: "#FAF6E6",
+          letterSpacing: "5px",
+          color: "#D8F4DD",
           textShadow:
-            "0 2px 20px rgba(0,0,0,0.7), 0 0 40px rgba(200,160,40,0.2)",
-          marginBottom: "64px",
+            "0 2px 20px rgba(0,0,0,0.68), 0 0 36px rgba(92, 198, 126, 0.26)",
+          marginBottom: "18px",
           textAlign: "center",
         }}
       >
-        Welcome to Arverié
+        A Journey from Expression to Reflection
       </h2>
+      <p
+        style={{
+          margin: "0 0 64px",
+          maxWidth: "760px",
+          textAlign: "center",
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: "clamp(16px, 1.7vw, 22px)",
+          letterSpacing: "0.8px",
+          color: "rgba(214, 242, 219, 0.86)",
+          lineHeight: 1.5,
+        }}
+      >
+        Create freely, receive gentle guidance, and preserve each emotional
+        chapter in your personal journal.
+      </p>
       <div
         style={{
           display: "flex",
@@ -65,54 +138,75 @@ function Footer() {
           alignItems: "flex-start",
         }}
       >
-        {[
-          {
-            icon: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z",
-            title: "Expressive Canvas",
-            desc: "Pour your feelings onto an open canvas. A distraction-free space where your strokes reflect your inner state.",
-            offset: 0,
-          },
-          {
-            icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
-            title: "Empathic AI",
-            desc: "Receive warm, gentle reflections on your art. Our AI guide helps you unpack your thoughts securely.",
-            offset: -16,
-          },
-          {
-            icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
-            title: "Mood Journal",
-            desc: "Collect your daily reflections. Turn your emotional history into a timeless, beautifully bound archive.",
-            offset: -8,
-          },
-        ].map((item, i) => (
+        {footerCards.map((item, i) => (
           <motion.div
             key={i}
-            whileHover={{ y: -8, transition: { duration: 0.28 } }}
+            className="footer-glass-card"
+            initial={{ opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.42, ease: "easeOut", delay: i * 0.08 }}
+            whileHover={{
+              y: -8,
+              borderColor: "rgba(183, 255, 204, 0.56)",
+              boxShadow:
+                "0 14px 46px rgba(0,0,0,0.4), 0 0 22px rgba(134, 244, 164, 0.24)",
+            }}
             style={{
               transform: `translateY(${item.offset}px)`,
-              background: "rgba(20, 16, 12, 0.58)",
-              backdropFilter: "blur(18px)",
-              WebkitBackdropFilter: "blur(18px)",
-              border: "0.5px solid rgba(200,160,64,0.18)",
+              background:
+                "linear-gradient(165deg, rgba(35, 78, 49, 0.32), rgba(20, 50, 31, 0.38))",
+              border: "1px solid rgba(166, 244, 185, 0.24)",
               borderRadius: "14px",
               padding: "40px 32px",
               boxShadow:
-                "0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(200,160,64,0.08)",
+                "0 10px 40px rgba(0,0,0,0.34), inset 0 1px 0 rgba(200, 255, 214, 0.1)",
               flex: 1,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               gap: "16px",
               textAlign: "center",
+              transition: "border-color 220ms ease, box-shadow 220ms ease",
             }}
           >
+            <div
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "4px",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "Cinzel, serif",
+                  fontSize: "9px",
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                  color: "rgba(203, 245, 215, 0.82)",
+                }}
+              >
+                {item.step}
+              </span>
+              <span
+                style={{
+                  width: "36px",
+                  height: "1px",
+                  background:
+                    "linear-gradient(to right, rgba(181, 248, 198, 0.7), rgba(181, 248, 198, 0.1))",
+                }}
+              />
+            </div>
             <div
               style={{
                 width: "64px",
                 height: "64px",
                 borderRadius: "50%",
-                background: "rgba(200,160,64,0.08)",
-                border: "1px solid rgba(200,160,64,0.22)",
+                background:
+                  "radial-gradient(circle at 35% 30%, rgba(190, 255, 205, 0.45), rgba(119, 214, 143, 0.14))",
+                border: "1px solid rgba(170, 246, 189, 0.48)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -123,7 +217,7 @@ function Footer() {
                 width="24"
                 height="24"
                 fill="none"
-                stroke="rgba(200,160,64,0.9)"
+                stroke="rgba(212, 255, 225, 0.96)"
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -137,7 +231,7 @@ function Footer() {
                 fontFamily: "'Cormorant Garamond', serif",
                 fontSize: "22px",
                 fontWeight: 300,
-                color: "#E3CFA7",
+                color: "#D8F7DF",
                 margin: 0,
               }}
             >
@@ -145,11 +239,22 @@ function Footer() {
             </h3>
             <p
               style={{
-                fontFamily: "sans-serif",
-                fontSize: "13px",
-                letterSpacing: "0.5px",
-                lineHeight: 1.7,
-                color: "rgba(245,235,200,0.65)",
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "16px",
+                letterSpacing: "0.04em",
+                color: "rgba(202, 241, 213, 0.82)",
+                margin: "-4px 0 2px",
+              }}
+            >
+              {item.cue}
+            </p>
+            <p
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "20px",
+                letterSpacing: "0.02em",
+                lineHeight: 1.35,
+                color: "rgba(218, 244, 224, 0.84)",
                 margin: 0,
               }}
             >
@@ -163,7 +268,7 @@ function Footer() {
           marginTop: "80px",
           fontSize: "11px",
           letterSpacing: "2px",
-          color: "rgba(245,239,224,0.3)",
+          color: "rgba(203, 236, 210, 0.42)",
           textTransform: "uppercase",
         }}
       >
@@ -177,6 +282,7 @@ function Footer() {
 export default function LandingPage() {
   const { soundOn, setSoundOn } = useApp();
   const [deskInView, setDeskInView] = useState(false);
+  const [showHeroOverlay, setShowHeroOverlay] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -198,6 +304,7 @@ export default function LandingPage() {
   const navRef = useRef(null);
   const navEkgRef = useRef(null);
   const navFlatRef = useRef(null);
+  const beginFlowTimersRef = useRef([]);
 
   // Parallax quickTo
   const qtRotX = useRef(null);
@@ -434,6 +541,44 @@ export default function LandingPage() {
     });
   }
 
+  function clearBeginFlowTimers() {
+    beginFlowTimersRef.current.forEach((timerId) =>
+      window.clearTimeout(timerId),
+    );
+    beginFlowTimersRef.current = [];
+  }
+
+  function handleBeginSessionClick() {
+    clearBeginFlowTimers();
+
+    const footerSection = document.getElementById("landing-footer");
+    const deskSection = document.getElementById("desk-section");
+    if (!deskSection) return;
+
+    if (prefersReduced || !footerSection) {
+      deskSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      const triggerId = window.setTimeout(() => {
+        window.dispatchEvent(new Event("arverie:desk-scroll-to-end"));
+      }, 350);
+      beginFlowTimersRef.current.push(triggerId);
+      return;
+    }
+
+    // Two-phase reveal: hero -> footer, then footer -> desk, then auto-play
+    // the desk's scroll-driven animation to its final phase.
+    footerSection.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    const toDeskId = window.setTimeout(() => {
+      deskSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 950);
+
+    const toDeskEndId = window.setTimeout(() => {
+      window.dispatchEvent(new Event("arverie:desk-scroll-to-end"));
+    }, 2200);
+
+    beginFlowTimersRef.current.push(toDeskId, toDeskEndId);
+  }
+
   // ─── Render ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!location.state?.focusDesk) return;
@@ -456,6 +601,51 @@ export default function LandingPage() {
     return () => window.clearTimeout(timer);
   }, [location.pathname, location.state, navigate]);
 
+  useEffect(
+    () => () => {
+      clearBeginFlowTimers();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    function updateHeroOverlayVisibility() {
+      const deskSection = document.getElementById("desk-section");
+      if (!deskSection) {
+        setShowHeroOverlay(!deskInView);
+        return;
+      }
+
+      // Keep the dulling overlay until the desk floor-top line gets close to
+      // the top of the viewport ("less space left"), then undull.
+      const floorLine = deskSection.querySelector(".room-floor");
+      if (floorLine) {
+        const floorTop = floorLine.getBoundingClientRect().top;
+        const floorNearTop =
+          floorTop <= Math.max(120, window.innerHeight * 0.16);
+        setShowHeroOverlay(!floorNearTop && !deskInView);
+        return;
+      }
+
+      // Fallback in case floor line is unavailable.
+      const deskTop = deskSection.getBoundingClientRect().top;
+      setShowHeroOverlay(
+        !(deskTop <= window.innerHeight * 0.95) && !deskInView,
+      );
+    }
+
+    updateHeroOverlayVisibility();
+    window.addEventListener("scroll", updateHeroOverlayVisibility, {
+      passive: true,
+    });
+    window.addEventListener("resize", updateHeroOverlayVisibility);
+
+    return () => {
+      window.removeEventListener("scroll", updateHeroOverlayVisibility);
+      window.removeEventListener("resize", updateHeroOverlayVisibility);
+    };
+  }, [deskInView]);
+
   return (
     <>
       <style>{`
@@ -463,6 +653,38 @@ export default function LandingPage() {
       .nav-logo svg { height: 100%; width: auto; max-width: 100%; display: block; }
       .nav-logo svg path[fill="#000000"] { display: none; }
       .hero-logo-svg svg path[fill="#000000"] { display: none; }
+
+      :root { --landing-vh: 100vh; }
+      @supports (height: 100dvh) {
+        :root { --landing-vh: 100dvh; }
+      }
+
+      .landing-hero-shell {
+        height: var(--landing-vh);
+        min-height: 100vh;
+      }
+
+      .landing-nav-glass {
+        background: rgba(26,22,20,0.84);
+      }
+
+      .footer-glass-card {
+        background: linear-gradient(165deg, rgba(35, 78, 49, 0.42), rgba(20, 50, 31, 0.5));
+      }
+
+      @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        .landing-nav-glass {
+          background: rgba(26,22,20,0.72);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+        }
+
+        .footer-glass-card {
+          background: linear-gradient(165deg, rgba(35, 78, 49, 0.32), rgba(20, 50, 31, 0.38));
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+      }
 
       .landscape-vivid {
         position: fixed;
@@ -480,7 +702,7 @@ export default function LandingPage() {
         {/* ── Fixed background image ── */}
         <div className="landscape-vivid" />
         {/* ── Fixed p5 canvas (dulling overlay) ── */}
-        {!prefersReduced && !deskInView && (
+        {!prefersReduced && showHeroOverlay && (
           <div
             style={{
               position: "fixed",
@@ -497,9 +719,9 @@ export default function LandingPage() {
         )}
         <div
           ref={sceneRef}
+          className="landing-hero-shell"
           style={{
             width: "100vw",
-            height: "100vh",
             background: "transparent",
             display: "flex",
             flexDirection: "column",
@@ -514,6 +736,7 @@ export default function LandingPage() {
           {/* ── Navbar ── */}
           <nav
             ref={navRef}
+            className="landing-nav-glass"
             style={{
               position: "fixed",
               top: 0,
@@ -524,9 +747,6 @@ export default function LandingPage() {
               alignItems: "center",
               justifyContent: "space-between",
               padding: "0 28px",
-              background: "rgba(26,22,20,0.72)",
-              backdropFilter: "blur(14px)",
-              WebkitBackdropFilter: "blur(14px)",
               borderBottom: "1px solid rgba(200,160,64,0.15)",
               zIndex: 50,
             }}
@@ -760,11 +980,13 @@ export default function LandingPage() {
             {/* Begin Session button */}
             <motion.button
               ref={btnRef}
-              onClick={() => navigate("/session")}
+              onClick={handleBeginSessionClick}
               whileHover={{
-                backgroundColor: "rgba(200,160,64,0.12)",
-                borderColor: "rgba(200,160,64,0.8)",
-                color: "#F5EFE0",
+                backgroundColor: "rgba(70, 161, 95, 0.36)",
+                borderColor: "rgba(181, 255, 201, 0.95)",
+                color: "#F3FFF6",
+                boxShadow:
+                  "0 12px 34px rgba(20, 58, 31, 0.52), 0 0 24px rgba(139, 243, 166, 0.45), inset 0 0 0 1px rgba(219, 255, 229, 0.25)",
                 y: -2,
               }}
               whileTap={{ scale: 0.97 }}
@@ -773,33 +995,51 @@ export default function LandingPage() {
                 alignItems: "center",
                 gap: "10px",
                 fontFamily: "Cinzel, serif",
-                fontSize: "11px",
+                fontSize: "12px",
                 letterSpacing: "0.22em",
-                color: "var(--gold)",
-                background: "transparent",
-                border: "1.5px solid var(--gold)",
+                color: "#E3F8E8",
+                background:
+                  "linear-gradient(180deg, rgba(16, 33, 22, 0.76), rgba(9, 22, 14, 0.82))",
+                border: "1.5px solid rgba(129, 225, 157, 0.72)",
                 borderRadius: "999px",
-                padding: "12px 36px",
+                padding: "14px 46px",
                 cursor: "pointer",
                 pointerEvents: "auto",
-                marginBottom: "36px",
+                marginBottom: "14px",
                 opacity: 0,
+                boxShadow:
+                  "0 8px 26px rgba(0,0,0,0.42), inset 0 1px 0 rgba(210, 255, 220, 0.18)",
                 transition:
-                  "background-color 0.22s ease, border-color 0.22s ease, color 0.22s ease",
+                  "background-color 0.24s ease, border-color 0.24s ease, color 0.24s ease, box-shadow 0.24s ease, transform 0.24s ease",
               }}
+              aria-label="Begin your Arverie session"
             >
               <span
-                style={{ fontSize: "8px", opacity: 0.7, color: "var(--gold)" }}
+                style={{ fontSize: "8px", opacity: 0.78, color: "#B5F8C7" }}
               >
                 ◆
               </span>
               Begin Your Session
               <span
-                style={{ fontSize: "8px", opacity: 0.7, color: "var(--gold)" }}
+                style={{ fontSize: "8px", opacity: 0.78, color: "#B5F8C7" }}
               >
                 ◆
               </span>
             </motion.button>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 3.25, duration: 0.45 }}
+              style={{
+                fontFamily: "Cormorant Garamond, serif",
+                fontSize: "16px",
+                letterSpacing: "0.06em",
+                color: "rgba(205, 240, 214, 0.84)",
+                margin: "0 0 24px",
+              }}
+            >
+              Private, guided, and always yours.
+            </motion.p>
 
             {/* Scroll hint */}
             <div

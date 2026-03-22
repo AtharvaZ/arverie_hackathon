@@ -21,6 +21,7 @@ class StartSessionResponse(BaseModel):
     session_token: str
     user_token: str
     auth_mode: str
+    ws_auth_mode: str
 
 
 class IntakeRequest(BaseModel):
@@ -51,9 +52,15 @@ class QuadrantDistribution(BaseModel):
 
 class CanvasSnapshot(BaseModel):
     strokes_per_second: float = 0.0
+    stroke_count_window: int = 0
     current_color: str = "#000000"
+    current_brush: Optional[str] = None
+    brush_usage_window: dict[str, int] = Field(default_factory=dict)
+    avg_stroke_speed_window: float = 0.0
+    stroke_samples_window: list[dict] = Field(default_factory=list)
     colors_used_this_window: list[str] = Field(default_factory=list)
     erase_events: list[EraseEvent] = Field(default_factory=list)
+    erase_count_window: int = 0
     quadrant_distribution: QuadrantDistribution = Field(default_factory=QuadrantDistribution)
     last_stroke_timestamp: float = 0.0
     elapsed_seconds: float = 0.0

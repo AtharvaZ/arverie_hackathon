@@ -41,13 +41,26 @@ const DESK_CSS = `
 }
 .room-wall {
   --window-top: 15%;
-  --window-width: 420px;
-  --window-height: 240px;
-  --window-gap: 72px;
+  --window-scale: 1;
+  --window-width-base: 462px;
+  --window-width: calc(var(--window-width-base) * var(--window-scale));
+  --window-height-ratio: 0.5974;
+  --window-height: calc(var(--window-width) * var(--window-height-ratio));
+  --window-gap: 68px;
   position:absolute;
   inset:0;
   pointer-events:none;
   z-index:1;
+}
+
+/* Explicit Safari class makes window-size testing deterministic. */
+.scene-outer.is-safari-browser .room-wall {
+  --window-scale: 0.90;
+}
+@media (min-width: 1201px) {
+  .scene-outer.is-safari-browser .room-wall {
+    --window-scale: 0.84;
+  }
 }
 .room-wall-piece {
   position:absolute;
@@ -120,6 +133,20 @@ const DESK_CSS = `
     linear-gradient(180deg,#C8A85A 0%,#B89040 50%,#A07830 100%);
   pointer-events:none; z-index:1;
 }
+.room-rug-hint {
+  position:absolute;
+  left:50%;
+  bottom:5%;
+  width:min(64vw, 940px);
+  height:17%;
+  transform:translateX(-50%);
+  border-radius:48% 52% 42% 58% / 65% 62% 38% 35%;
+  background:
+    radial-gradient(ellipse at 50% 42%,rgba(210,186,128,.18),rgba(156,121,66,.13) 54%,rgba(126,92,44,.08) 82%,transparent 100%);
+  box-shadow:0 14px 40px rgba(45,24,6,.2);
+  pointer-events:none;
+  z-index:1;
+}
 /* Baseboard */
 .room-baseboard {
   position:absolute; bottom:22%; left:0; right:0; height:10px;
@@ -130,19 +157,66 @@ const DESK_CSS = `
 
 /* ══ WINDOWS (two panels side by side) ════════════════════ */
 .room-window-wrap {
-  position:absolute; top:15%; left:50%; transform:translateX(-50%);
-  display:flex; gap:72px;
-  pointer-events:none; z-index:4;
+  position:absolute;
+  top:var(--window-top);
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:var(--window-gap);
+  pointer-events:none; z-index:6;
   will-change:transform,opacity;
 }
 .room-window-panel { display:flex; flex-direction:column; }
 /* Outer wall trim — window sill frame */
 .room-window-trim {
   position:relative;
-  padding:14px 14px 0 14px;
+  padding:9px 9px 0 9px;
   background:transparent;
   border-radius:4px 4px 0 0;
-  box-shadow:0 10px 30px rgba(50,28,5,.25);
+  box-shadow:0 8px 20px rgba(50,28,5,.2);
+  z-index:1;
+}
+.room-window-curtain {
+  position:absolute;
+  inset:1px;
+  border-radius:2px;
+  overflow:hidden;
+  pointer-events:none;
+  z-index:2;
+}
+.room-window-curtain::before,
+.room-window-curtain::after {
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:50%;
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.22) 0 3px,rgba(255,255,255,.08) 3px 7px),
+    linear-gradient(180deg,rgba(255,255,255,.78),rgba(255,255,255,.58) 62%,rgba(245,245,245,.42) 100%);
+  border:1px solid rgba(255,255,255,.54);
+  backdrop-filter: blur(.7px);
+  -webkit-backdrop-filter: blur(.7px);
+}
+.room-window-curtain::before {
+  left:0;
+  border-right:none;
+  border-radius:2px 0 0 2px;
+}
+.room-window-curtain::after {
+  right:0;
+  border-left:none;
+  border-radius:0 2px 2px 0;
+}
+.room-window-curtain-center {
+  position:absolute;
+  left:50%;
+  top:0;
+  bottom:0;
+  width:4px;
+  transform:translateX(-50%);
+  background:rgba(188,165,120,.7);
+  z-index:3;
 }
 .room-window-trim::before {
   content:"";
@@ -150,46 +224,363 @@ const DESK_CSS = `
   inset:0;
   border-radius:4px 4px 0 0;
   box-shadow:
-    inset 0 0 0 14px #C4B878,
-    inset 0 4px 12px rgba(0,0,0,.12);
+    inset 0 0 0 9px #C4B878,
+    inset 0 3px 8px rgba(0,0,0,.1);
   pointer-events:none;
 }
-/* Bottom sill ledge */
-.room-window-sill {
-  display:block; height:14px; margin:0 -14px;
-  background:linear-gradient(to bottom,#C8B870,#9A7230);
+/* Single sill strip below both windows */
+.room-window-sill-strip {
+  position:absolute;
+  left:50%;
+  top:calc(var(--window-height) + 12px);
+  width:calc(var(--window-width) * 2 + var(--window-gap) + 36px);
+  height:14px;
+  transform:translateX(-50%);
   border-radius:0 0 4px 4px;
-  box-shadow:0 6px 14px rgba(50,28,5,.28);
+  background:linear-gradient(to bottom,#CCBE7D,#9D7633);
+  box-shadow:0 5px 11px rgba(50,28,5,.28);
+  z-index:4;
 }
 /* Glass pane */
 .room-window-glass {
-  width:420px; height:240px; position:relative;
-  background:transparent;
+  width:var(--window-width);
+  height:var(--window-height);
+  position:relative;
+  background:
+    radial-gradient(circle at 22% 16%,rgba(255,235,195,.38),transparent 36%),
+    linear-gradient(180deg,rgba(170,198,214,.46) 0%,rgba(148,173,186,.34) 48%,rgba(131,157,169,.28) 100%);
   border-radius:2px;
   box-shadow:
     inset 0 0 0 1px rgba(100,78,42,.34),
     inset 0 0 40px rgba(255,220,170,.08);
+  z-index:1;
 }
-.room-window-glass::before { content:none; }
-.room-window-glass::after  { content:none; }
-/* Window sill — hidden */
-.room-window-sill { display:none; }
+.room-window-glass::before {
+  content:"";
+  position:absolute;
+  left:50%;
+  top:0;
+  bottom:0;
+  width:1px;
+  transform:translateX(-50%);
+  background:linear-gradient(180deg,rgba(91,72,40,.14),rgba(91,72,40,.3),rgba(91,72,40,.16));
+  z-index:1;
+}
+.room-window-glass::after {
+  content:"";
+  position:absolute;
+  top:50%;
+  left:0;
+  right:0;
+  height:1px;
+  transform:translateY(-50%);
+  background:linear-gradient(90deg,rgba(91,72,40,.14),rgba(91,72,40,.3),rgba(91,72,40,.14));
+  z-index:1;
+}
 /* Soft light spill below windows */
 .room-window-glow {
   position:absolute; top:100%; left:50%; transform:translateX(-50%);
-  width:720px; height:80px; pointer-events:none;
+  width:min(86vw,920px);
+  height:88px;
+  pointer-events:none;
   background:radial-gradient(ellipse at 50% 0%,rgba(220,205,155,.18) 0%,transparent 70%);
 }
+.room-art {
+  position:absolute;
+  top:15%;
+  left:6%;
+  width:min(11vw,150px);
+  aspect-ratio:4/5;
+  border-radius:3px;
+  background:linear-gradient(145deg,#B99962,#8E6D3D);
+  box-shadow:0 11px 24px rgba(42,22,4,.22);
+  pointer-events:none;
+  z-index:3;
+}
+.room-art::before {
+  content:"";
+  position:absolute;
+  inset:11px;
+  border-radius:2px;
+  background:var(--paper);
+  box-shadow:inset 0 0 0 1px rgba(146,110,58,.2);
+}
+.room-art-canvas {
+  position:absolute;
+  inset:20px;
+  border-radius:1px;
+  background:
+    radial-gradient(circle at 70% 22%,rgba(247,210,142,.62),rgba(236,182,98,.36) 18%,transparent 44%),
+    linear-gradient(180deg,rgba(128,174,192,.55) 0%,rgba(109,154,166,.42) 40%,rgba(95,128,102,.62) 41%,rgba(88,114,83,.72) 100%);
+  overflow:hidden;
+}
+.room-art-canvas::before,
+.room-art-canvas::after {
+  content:"";
+  position:absolute;
+}
+.room-art-canvas::before {
+  left:-8%;
+  right:-10%;
+  bottom:20%;
+  height:48%;
+  border-radius:48% 52% 0 0;
+  background:
+    radial-gradient(ellipse at 28% 30%,rgba(127,162,115,.82),rgba(90,124,82,.88) 58%,rgba(73,98,68,.94) 100%);
+  box-shadow:inset 0 10px 16px rgba(173,210,141,.18);
+}
+.room-art-canvas::after {
+  left:32%;
+  bottom:-6%;
+  width:36%;
+  height:60%;
+  border-radius:50% 50% 44% 44%;
+  transform:rotate(-2deg);
+  background:
+    linear-gradient(180deg,rgba(227,199,150,.92) 0%,rgba(184,151,102,.86) 36%,rgba(127,96,59,.9) 72%,rgba(99,74,43,.94) 100%);
+  filter:blur(.2px);
+  opacity:.94;
+}
+
+.room-shelf {
+  position:absolute;
+  top:21%;
+  right:3%;
+  width:min(14vw,180px);
+  height:12px;
+  border-radius:2px;
+  background:linear-gradient(180deg,#B88F4F,#8D6734);
+  box-shadow:0 8px 12px rgba(42,22,4,.22);
+  pointer-events:none;
+  z-index:3;
+}
+.room-shelf::before,
+.room-shelf::after {
+  content:"";
+  position:absolute;
+  top:100%;
+  width:3px;
+  height:13px;
+  background:rgba(94,67,36,.42);
+}
+.room-shelf::before { left:18%; }
+.room-shelf::after { right:14%; }
+.room-shelf-books {
+  position:absolute;
+  left:8%;
+  bottom:100%;
+  display:flex;
+  gap:4px;
+  align-items:flex-end;
+}
+.room-book {
+  width:11px;
+  border-radius:1px 1px 0 0;
+  box-shadow:inset -1px 0 0 rgba(0,0,0,.18);
+}
+.rb1 { height:35px; background:linear-gradient(180deg,#946749,#6E4B34); }
+.rb2 { height:41px; background:linear-gradient(180deg,#74806D,#58644F); }
+.rb3 { height:30px; background:linear-gradient(180deg,#B0865A,#825D3A); }
+.rb4 { height:37px; background:linear-gradient(180deg,#8E6C57,#6B4D3D); }
+
+.room-plant {
+  position:absolute;
+  right:12%;
+  bottom:100%;
+  width:40px;
+  height:56px;
+}
+.room-plant-pot {
+  position:absolute;
+  left:8px;
+  bottom:0;
+  width:24px;
+  height:18px;
+  border-radius:2px 2px 6px 6px;
+  background:linear-gradient(180deg,#A4724B,#7A4E30);
+  box-shadow:0 4px 8px rgba(42,22,4,.22);
+}
+.room-plant-leaf {
+  position:absolute;
+  bottom:11px;
+  width:14px;
+  height:30px;
+  border-radius:20px 20px 0 20px;
+  background:linear-gradient(180deg,#7A9258,#55713D);
+  transform-origin:bottom center;
+}
+.rleaf1 { left:8px; transform:rotate(-22deg); }
+.rleaf2 { left:15px; height:34px; transform:rotate(4deg); }
+.rleaf3 { left:22px; transform:rotate(24deg) scaleX(-1); }
+
+.room-clock {
+  position:absolute;
+  top:6%;
+  right:7%;
+  width:54px;
+  height:54px;
+  border-radius:50%;
+  background:radial-gradient(circle at 36% 30%,#FBF3DA,#E5D4AA 62%,#D4BB8A 100%);
+  box-shadow:0 8px 18px rgba(42,22,4,.18), inset 0 0 0 2px rgba(130,94,49,.38);
+  pointer-events:none;
+  z-index:3;
+}
+.room-clock::before,
+.room-clock::after {
+  content:"";
+  position:absolute;
+  left:52%;
+  bottom:45%;
+  transform-origin:bottom center;
+  border-radius:999px;
+  background:rgba(95,66,34,.68);
+}
+.room-clock::before {
+  width:2px;
+  height:18px;
+  transform:translateX(-50%) rotate(34deg);
+}
+.room-clock::after {
+  width:2px;
+  height:23px;
+  transform:translateX(-50%) rotate(-48deg);
+}
+
+.room-wall-lamp {
+  position:absolute;
+  top:11%;
+  left:10%;
+  width:24px;
+  height:24px;
+  border-radius:50% 50% 46% 46%;
+  background:radial-gradient(circle at 36% 28%,#E5CC8C 0%,#B69354 52%,#846231 100%);
+  box-shadow:0 6px 14px rgba(42,22,4,.24), inset 0 -1px 0 rgba(72,48,20,.36);
+  pointer-events:none;
+  z-index:3;
+}
+.room-wall-lamp::before {
+  content:"";
+  position:absolute;
+  left:50%;
+  top:4px;
+  width:88px;
+  height:88px;
+  transform:translateX(-50%);
+  background:radial-gradient(circle,rgba(234,192,118,.3) 0%,rgba(234,192,118,.1) 42%,transparent 70%);
+}
+.room-wall-lamp::after {
+  content:"";
+  position:absolute;
+  left:50%;
+  top:-9px;
+  width:3px;
+  height:10px;
+  transform:translateX(-50%);
+  border-radius:3px;
+  background:rgba(112,82,41,.7);
+}
+
+.room-side-cabinet {
+  position:absolute;
+  right:4%;
+  bottom:20%;
+  width:min(19vw, 280px);
+  height:min(22vh, 200px);
+  border-radius:5px 5px 3px 3px;
+  padding:12px 10px 8px;
+  background:
+    linear-gradient(180deg,rgba(183,139,79,.22),transparent 22%),
+    linear-gradient(118deg,#8D6734 0%,#765228 48%,#5E401E 100%);
+  box-shadow:
+    0 12px 24px rgba(42,22,4,.22),
+    inset 0 1px 0 rgba(255,220,160,.12),
+    inset 0 -1px 0 rgba(40,18,4,.3);
+  pointer-events:none;
+  z-index:3;
+}
+.room-side-cabinet::before {
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:-7px;
+  height:9px;
+  border-radius:3px 3px 1px 1px;
+  background:linear-gradient(180deg,#A77A45,#7A5529);
+  box-shadow:0 4px 8px rgba(30,14,2,.2);
+}
+.cabinet-drawers {
+  position:relative;
+  display:grid;
+  grid-template-rows:repeat(3, 1fr);
+  gap:6px;
+  height:100%;
+}
+.cabinet-drawer {
+  position:relative;
+  border-radius:2px;
+  background:
+    linear-gradient(180deg,rgba(210,170,112,.14),transparent 34%),
+    linear-gradient(112deg,#7E5A2E 0%,#684620 52%,#55381A 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(240,205,150,.1),
+    inset 0 -1px 0 rgba(40,20,7,.36);
+}
+.cabinet-drawer::before {
+  content:"";
+  position:absolute;
+  left:10px;
+  right:10px;
+  top:0;
+  height:1px;
+  background:rgba(237,205,154,.14);
+}
+.cabinet-handle {
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  transform:translate(-50%, -50%);
+  background:radial-gradient(circle at 36% 30%,#E5CF95,#B7904D 58%,#8A642D 100%);
+  box-shadow:0 1px 3px rgba(0,0,0,.22);
+}
+.cabinet-legs {
+  position:absolute;
+  top:100%;
+  left:0;
+  right:0;
+  height:30px;
+  pointer-events:none;
+}
+.cabinet-leg {
+  position:absolute;
+  top:0;
+  width:10px;
+  height:28px;
+  border-radius:0 0 3px 3px;
+  background:linear-gradient(to right,#120804 0%,#2A1A0A 35%,#1E1008 65%,#0E0604 100%);
+  box-shadow:
+    2px 0 6px rgba(0,0,0,.5),
+    inset -1px 0 0 rgba(0,0,0,.34),
+    inset 1px 0 0 rgba(255,255,255,.04);
+}
+.cabinet-leg.l1 { left:12%; transform:rotate(-1deg); }
+.cabinet-leg.l2 { left:38%; transform:rotate(0.6deg); }
+.cabinet-leg.l3 { right:38%; transform:rotate(-0.6deg); }
+.cabinet-leg.l4 { right:12%; transform:rotate(1deg); }
 .wall-name {
-  position:absolute; top:55px; left:50%;
+  position:absolute; top:7%; left:50%;
   transform:translateX(-50%) translateY(0px);
   font-family:'Cormorant Garamond',serif; font-style:italic;
-  font-size:clamp(20px,3vw,32px); color:rgba(90,60,20,.3);
+  font-size:clamp(22px,3vw,34px); color:rgba(90,60,20,.46);
   letter-spacing:6px; white-space:nowrap;
   pointer-events:none; user-select:none;
+  z-index:7;
   will-change:transform,opacity;
 }
-.wall-name span { color:rgba(90,60,20,.54); }
+.wall-name span { color:rgba(90,60,20,.68); }
 
 /* ══ DESK ASSEMBLY ══════════════════════════ */
 .desk-wrap {
@@ -361,9 +752,9 @@ const DESK_CSS = `
 
 /* ── back paper (previous drawing, peeks from behind main canvas) ── */
 .back-paper {
-  position:absolute; top:6%; left:11%; width:37%; height:75%;
+  position:absolute; top:11%; left:10%; width:43%; height:57%;
   background:var(--paper-lo); border-radius:2px; z-index:4;
-  transform:rotate(8deg) translateX(52%);
+  transform:rotate(8deg) translateX(47%);
   box-shadow:0 4px 18px rgba(20,10,2,.28), 0 1px 4px rgba(20,10,2,.14);
   pointer-events:none; overflow:hidden;
 }
@@ -371,14 +762,14 @@ const DESK_CSS = `
   width:100%;
   height:100%;
   object-fit:contain;
-  object-position:left top;
+  object-position:center center;
   background:var(--paper-lo);
   opacity:0.7;
 }
 
 /* ── big drawing paper ── */
 .big-paper {
-  position:absolute; top:6%; left:13%; width:35%; height:73%;
+  position:absolute; top:6%; left:17%; width:35%; height:73%;
   background:var(--paper); border-radius:2px; cursor:pointer; z-index:5;
   box-shadow:0 8px 28px rgba(20,10,2,.38),0 3px 8px rgba(20,10,2,.22),inset 0 0 0 .5px rgba(0,0,0,.05);
   transition:transform .32s cubic-bezier(.2,.85,.3,1),box-shadow .32s;
@@ -390,6 +781,8 @@ const DESK_CSS = `
 }
 .big-paper::before { content:none; }
 .big-paper::after  { content:none; }
+/* Safety: hide any stale center clip markup from old bundles/cached UI */
+.big-paper-clip { display:none !important; }
 .big-paper-shine {
   position:absolute; top:0; left:0; right:0; height:2px;
   background:linear-gradient(to right,transparent,rgba(255,235,180,.5),transparent);
@@ -410,11 +803,6 @@ const DESK_CSS = `
   color:rgba(110,75,30,.22); margin-top:12px; transition:color .3s;
 }
 .big-paper:hover .big-paper-cta { color:rgba(160,115,50,.48); }
-.paper-corner {
-  position:absolute; bottom:0; right:0; width:0; height:0;
-  border-style:solid; border-width:0 0 26px 26px;
-  border-color:transparent transparent var(--paper-lo) transparent;
-}
 
 /* ── journal ── */
 .journal {
@@ -585,6 +973,69 @@ const DESK_CSS = `
 .book-name { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 600; color: #FFF4E0; letter-spacing: 3px; }
 .book-rule { width: 40px; height: 1px; background: linear-gradient(to right,transparent,rgba(245,215,140,.6),transparent); }
 .book-sub { font-size: 10px; color: rgba(255,235,185,.8); letter-spacing: 3px; text-transform: uppercase; }
+
+@media (max-width: 1200px) {
+  .room-wall {
+    --window-width-base: 392px;
+    --window-height-ratio: 0.602;
+    --window-gap: 42px;
+  }
+  .room-art {
+    left:2.5%;
+    width:min(11vw,132px);
+    top:28%;
+  }
+  .room-shelf {
+    right:2.5%;
+    width:min(13vw,160px);
+  }
+  .room-side-cabinet {
+    right:2%;
+    width:min(20vw, 186px);
+    height:min(21vh, 136px);
+  }
+}
+
+@media (max-width: 900px) {
+  .room-wall {
+    --window-top: 13%;
+    --window-width-base: min(43vw, 268px);
+    --window-height-ratio: 0.709;
+    --window-gap: min(5vw, 26px);
+  }
+  .room-window-wrap { top:14%; }
+  .room-clock { right:3%; width:48px; height:48px; }
+  .room-shelf,
+  .room-art,
+  .room-wall-lamp { display:none; }
+  .room-side-cabinet {
+    right:2%;
+    width:min(24vw, 156px);
+    height:min(17vh, 112px);
+  }
+  .cabinet-legs { height:24px; }
+  .cabinet-leg { height:22px; width:8px; }
+}
+
+@media (max-width: 640px) {
+  .room-wall {
+    --window-top: 15%;
+    --window-width-base: min(39vw, 170px);
+    --window-height-ratio: 0.8;
+    --window-gap: 14px;
+  }
+  .room-window-trim { padding:6px 6px 0 6px; }
+  .room-window-trim::before { box-shadow:inset 0 0 0 6px #C4B878,inset 0 2px 6px rgba(0,0,0,.1); }
+  .room-window-sill-strip { height:8px; top:calc(var(--window-height) + 9px); }
+  .room-window-glow { width:min(92vw, 420px); height:54px; }
+  .room-art,
+  .room-shelf,
+  .room-wall-lamp,
+  .room-clock,
+  .room-side-cabinet { display:none; }
+  .room-plant { transform:scale(.88); transform-origin:bottom right; }
+  .room-rug-hint { width:92vw; height:14%; bottom:6%; opacity:.72; }
+}
 `;
 
 export default function DeskSection({
@@ -735,6 +1186,35 @@ export default function DeskSection({
     // Set initial tilted state — matches the CSS default transform
     applyAnim(0);
 
+    let autoPlayRafId = 0;
+
+    function easeOutCubic(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    function autoPlayTo(targetProgress, durationMs) {
+      if (autoPlayRafId) window.cancelAnimationFrame(autoPlayRafId);
+      const startProgress = progressRef.current;
+      const delta = targetProgress - startProgress;
+      const startTime = performance.now();
+
+      const tick = (now) => {
+        const t = Math.min((now - startTime) / durationMs, 1);
+        applyAnim(startProgress + delta * easeOutCubic(t));
+        if (t < 1) {
+          autoPlayRafId = window.requestAnimationFrame(tick);
+        } else {
+          autoPlayRafId = 0;
+        }
+      };
+
+      autoPlayRafId = window.requestAnimationFrame(tick);
+    }
+
+    function onScrollDeskToEnd() {
+      autoPlayTo(TOTAL_PHASES, 1500);
+    }
+
     // Use a generous tolerance (10px) so sub-pixel rounding and fractional
     // viewport heights on different devices don't prevent the lock from firing.
     function deskInView() {
@@ -782,11 +1262,17 @@ export default function DeskSection({
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("touchstart", onTouchStart, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("arverie:desk-scroll-to-end", onScrollDeskToEnd);
 
     return () => {
+      if (autoPlayRafId) window.cancelAnimationFrame(autoPlayRafId);
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener(
+        "arverie:desk-scroll-to-end",
+        onScrollDeskToEnd,
+      );
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -831,12 +1317,20 @@ export default function DeskSection({
   }
 
   const displayName = user?.name || null;
+  const isSafariBrowser =
+    typeof navigator !== "undefined" &&
+    /safari/i.test(navigator.userAgent) &&
+    !/chrome|chromium|android/i.test(navigator.userAgent);
 
   return (
     <>
       <style>{DESK_CSS}</style>
 
-      <section id={sectionId} className="scene-outer" ref={sectionRef}>
+      <section
+        id={sectionId}
+        className={`scene-outer ${isSafariBrowser ? "is-safari-browser" : ""}`.trim()}
+        ref={sectionRef}
+      >
         <div className="scene-sticky">
           <div className="room-wall" aria-hidden="true">
             <div className="room-wall-piece room-wall-top" />
@@ -849,20 +1343,66 @@ export default function DeskSection({
           {/* Room details */}
           <div className="room-molding" ref={wallTopRef} />
           <div className="room-floor" />
+          <div className="room-rug-hint" />
           <div className="room-baseboard" />
           <div className="room-window-wrap" ref={windowsRef}>
             <div className="room-window-glow" />
             <div className="room-window-panel">
               <div className="room-window-trim">
-                <div className="room-window-glass" />
+                <div className="room-window-glass">
+                  <div className="room-window-curtain">
+                    <div className="room-window-curtain-center" />
+                  </div>
+                </div>
               </div>
-              <div className="room-window-sill" />
             </div>
             <div className="room-window-panel">
               <div className="room-window-trim">
-                <div className="room-window-glass" />
+                <div className="room-window-glass">
+                  <div className="room-window-curtain">
+                    <div className="room-window-curtain-center" />
+                  </div>
+                </div>
               </div>
-              <div className="room-window-sill" />
+            </div>
+            <div className="room-window-sill-strip" />
+          </div>
+          <div className="room-art">
+            <div className="room-art-canvas" />
+          </div>
+          <div className="room-shelf">
+            <div className="room-shelf-books">
+              <div className="room-book rb1" />
+              <div className="room-book rb2" />
+              <div className="room-book rb3" />
+              <div className="room-book rb4" />
+            </div>
+            <div className="room-plant">
+              <div className="room-plant-pot" />
+              <div className="room-plant-leaf rleaf1" />
+              <div className="room-plant-leaf rleaf2" />
+              <div className="room-plant-leaf rleaf3" />
+            </div>
+          </div>
+          <div className="room-clock" />
+          <div className="room-wall-lamp" />
+          <div className="room-side-cabinet">
+            <div className="cabinet-drawers">
+              <div className="cabinet-drawer">
+                <div className="cabinet-handle" />
+              </div>
+              <div className="cabinet-drawer">
+                <div className="cabinet-handle" />
+              </div>
+              <div className="cabinet-drawer">
+                <div className="cabinet-handle" />
+              </div>
+            </div>
+            <div className="cabinet-legs">
+              <div className="cabinet-leg l1" />
+              <div className="cabinet-leg l2" />
+              <div className="cabinet-leg l3" />
+              <div className="cabinet-leg l4" />
             </div>
           </div>
 
@@ -874,11 +1414,11 @@ export default function DeskSection({
             {displayName ? (
               <>
                 {displayName}
-                <span>'s space</span>
+                <span>'s Space</span>
               </>
             ) : (
               <>
-                your<span> space</span>
+                Your<span> Space</span>
               </>
             )}
           </div>
@@ -943,7 +1483,6 @@ export default function DeskSection({
                     <div className="big-paper-title">your canvas awaits</div>
                     <div className="big-paper-cta">click to begin</div>
                   </div>
-                  <div className="paper-corner" />
                 </div>
 
                 {/* Journal */}
@@ -1052,15 +1591,33 @@ export default function DeskSection({
                   <div className="stat-unit">total</div>
                 </div>
                 {(() => {
-                  const withMood = pastSessions.filter(
-                    (s) => s.mood_checkin != null && s.mood_checkout != null,
+                  const getSessionErasures = (sessionRow) => {
+                    const directCount =
+                      sessionRow?.erasure_count ??
+                      sessionRow?.erasureCount ??
+                      sessionRow?.data?.erasure_count ??
+                      sessionRow?.data?.erasureCount ??
+                      sessionRow?.data?.canvas_summary?.erasure_count ??
+                      sessionRow?.data?.canvas_summary?.erasureCount;
+
+                    if (typeof directCount === "number" && directCount >= 0) {
+                      return directCount;
+                    }
+
+                    const eraseEvents =
+                      sessionRow?.data?.canvas_summary?.erase_events;
+                    if (Array.isArray(eraseEvents)) return eraseEvents.length;
+
+                    return 0;
+                  };
+
+                  const erasuresPerSession =
+                    pastSessions.map(getSessionErasures);
+                  const totalErasures = erasuresPerSession.reduce(
+                    (sum, count) => sum + count,
+                    0,
                   );
-                  const lifts = withMood.map(
-                    (s) => s.mood_checkout - s.mood_checkin,
-                  );
-                  const avgLift = lifts.length
-                    ? lifts.reduce((a, b) => a + b, 0) / lifts.length
-                    : null;
+
                   const barColors = [
                     "#B09070",
                     "#B89868",
@@ -1068,22 +1625,23 @@ export default function DeskSection({
                     "#C4956A",
                     "#C8A84B",
                   ];
-                  const barHeights = lifts.length
-                    ? lifts
-                        .slice(-5)
-                        .map((l) => Math.max(10, Math.min(100, 50 + l * 10)))
-                    : [36, 50, 46, 68, 84];
+                  const recentErasures = erasuresPerSession.slice(-5);
+                  const maxErasures = Math.max(1, ...recentErasures);
+                  const barHeights = recentErasures.length
+                    ? recentErasures.map((count) =>
+                        Math.max(
+                          10,
+                          Math.min(100, (count / maxErasures) * 100),
+                        ),
+                      )
+                    : [16, 24, 18, 30, 20];
                   return (
                     <div className="stat-paper sp-front">
                       <div className="gc-tl" />
                       <div className="gc-br" />
-                      <div className="stat-lbl">avg lift</div>
-                      <div className="stat-val">
-                        {avgLift != null
-                          ? `${avgLift >= 0 ? "+" : ""}${avgLift.toFixed(1)}`
-                          : "—"}
-                      </div>
-                      <div className="stat-unit">mood · per session</div>
+                      <div className="stat-lbl">total erasures</div>
+                      <div className="stat-val">{totalErasures}</div>
+                      <div className="stat-unit">across all sessions</div>
                       <div className="stat-bars">
                         {barHeights.map((h, i) => (
                           <div
