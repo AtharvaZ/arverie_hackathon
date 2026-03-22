@@ -580,9 +580,12 @@ const DESK_CSS = `
 .book-sub { font-size: 10px; color: rgba(255,235,185,.8); letter-spacing: 3px; text-transform: uppercase; }
 `;
 
-export default function DeskSection({ onDeskInViewChange }) {
+export default function DeskSection({
+  onDeskInViewChange,
+  sectionId = "desk-section",
+}) {
   const navigate = useNavigate();
-  const { user, session, pastSessions } = useApp();
+  const { user, setUserName, session, pastSessions } = useApp();
 
   // modal state — show if no name (user.name is always set in AppContext for now)
   const [showModal, setShowModal] = useState(false);
@@ -767,7 +770,7 @@ export default function DeskSection({ onDeskInViewChange }) {
   function handleModalSave() {
     const trimmed = modalName.trim();
     if (!trimmed) return;
-    // AppContext user.name is static in this project; just proceed
+    setUserName(trimmed);
     setShowModal(false);
     setModalName("");
     if (pendingAction) {
@@ -789,7 +792,7 @@ export default function DeskSection({ onDeskInViewChange }) {
     <>
       <style>{DESK_CSS}</style>
 
-      <section className="scene-outer" ref={sectionRef}>
+      <section id={sectionId} className="scene-outer" ref={sectionRef}>
         <div className="scene-sticky">
           <div className="room-wall" aria-hidden="true">
             <div className="room-wall-piece room-wall-top" />

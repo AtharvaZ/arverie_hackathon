@@ -2,7 +2,6 @@ import time
 import math
 import random
 import logging
-from typing import Optional
 from models import TriggerResult
 
 logger = logging.getLogger(__name__)
@@ -22,13 +21,15 @@ COOLDOWN_PENALTY = 10.0
 TRIGGER_THRESHOLD = 5.0
 DECAY_RATE = 0.85
 COOLDOWN_SECONDS = 90
+CHECK_IN_MIN_SECONDS = 120
+CHECK_IN_MAX_SECONDS = 180
 
 
 class CanvasEventProcessor:
     def __init__(self) -> None:
         self.signal_scores: dict[str, float] = {}
         self.last_trigger_time: float = 0.0
-        self.check_in_target: float = random.uniform(150, 300)
+        self.check_in_target: float = random.uniform(CHECK_IN_MIN_SECONDS, CHECK_IN_MAX_SECONDS)
         self.flow_intensity: str = "medium"
         self.stroke_baseline: float = 0.0
         self.baseline_samples: list[float] = []
@@ -36,6 +37,7 @@ class CanvasEventProcessor:
         self.color_history: list[tuple[str, float]] = []  # (color, timestamp)
         self.quadrant_history: list[tuple[dict, float]] = []  # (distribution, timestamp)
         self._last_elapsed: float = 0.0
+        self._latest_snapshot_stats: dict = {}
 
     def update(self, snapshot: dict) -> TriggerResult:
         # Decay ALWAYS runs before processing new events
@@ -45,6 +47,15 @@ class CanvasEventProcessor:
 
     def should_trigger(self) -> TriggerResult:
         in_cooldown = (time.time() - self.last_trigger_time) < COOLDOWN_SECONDS
+        # Timed check-ins should be dependable every 2-3 minutes when not cooling down.
+        if not in_cooldown and self.signal_scores.get("check_in", 0) >= SIGNAL_WEIGHTS["check_in"]:
+            return TriggerResult(
+                should_fire=True,
+                dominant_signal="check_in",
+                signal_context=self.get_signal_context(),
+                flow_intensity=self.flow_intensity,
+            )
+
         cost = FLOW_COST.get(self.flow_intensity, 3.0) + (COOLDOWN_PENALTY if in_cooldown else 0)
         total = sum(self.signal_scores.values())
 
@@ -66,13 +77,17 @@ class CanvasEventProcessor:
         # Must reset BOTH signal scores AND last_trigger_time
         self.signal_scores.clear()
         self.last_trigger_time = time.time()
-        self.check_in_target = self._last_elapsed + random.uniform(150, 300)
+        self.check_in_target = self._last_elapsed + random.uniform(
+            CHECK_IN_MIN_SECONDS,
+            CHECK_IN_MAX_SECONDS,
+        )
 
     def get_signal_context(self) -> dict:
         return {
             "signal_scores": dict(self.signal_scores),
             "flow_intensity": self.flow_intensity,
             "total_signal": sum(self.signal_scores.values()),
+            "snapshot_stats": dict(self._latest_snapshot_stats),
         }
 
     def _decay_signals(self) -> None:
@@ -92,6 +107,12 @@ class CanvasEventProcessor:
         last_stroke_ts = snapshot.get("last_stroke_timestamp", 0.0)
         elapsed = snapshot.get("elapsed_seconds", 0.0)
         self._last_elapsed = elapsed
+        self._latest_snapshot_stats = {
+            "strokes_per_second": round(float(sps or 0.0), 2),
+            "erase_events_window": len(erase_events),
+            "colors_window": len(snapshot.get("colors_used_this_window", []) or []),
+            "elapsed_seconds": round(float(elapsed or 0.0), 2),
+        }
 
         # Update flow intensity based on strokes per second
         if sps > 3.0:
@@ -237,7 +258,10 @@ class CanvasEventProcessor:
             self.signal_scores["check_in"] = (
                 self.signal_scores.get("check_in", 0) + SIGNAL_WEIGHTS["check_in"]
             )
-            self.check_in_target = elapsed + random.uniform(150, 300)
+            self.check_in_target = elapsed + random.uniform(
+                CHECK_IN_MIN_SECONDS,
+                CHECK_IN_MAX_SECONDS,
+            )
 
     def _hsl_delta(self, hex1: str, hex2: str) -> float:
         """Compute approximate hue delta between two hex colors in degrees."""

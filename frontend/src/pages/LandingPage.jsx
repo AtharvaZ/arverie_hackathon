@@ -7,7 +7,7 @@
  */
 
 import React, { useEffect, useRef, useState, Suspense } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { gsap } from "gsap";
 import { useApp } from "../context/AppContext";
@@ -178,6 +178,7 @@ export default function LandingPage() {
   const { soundOn, setSoundOn } = useApp();
   const [deskInView, setDeskInView] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Layout refs
   const sceneRef = useRef(null);
@@ -434,6 +435,27 @@ export default function LandingPage() {
   }
 
   // ─── Render ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!location.state?.focusDesk) return;
+
+    const timer = window.setTimeout(() => {
+      const deskSection = document.getElementById("desk-section");
+      if (deskSection) {
+        deskSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      navigate(location.pathname, {
+        replace: true,
+        state: {
+          ...location.state,
+          focusDesk: false,
+        },
+      });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [location.pathname, location.state, navigate]);
+
   return (
     <>
       <style>{`
@@ -458,15 +480,14 @@ export default function LandingPage() {
         {/* ── Fixed background image ── */}
         <div className="landscape-vivid" />
         {/* ── Fixed p5 canvas (dulling overlay) ── */}
-        {!prefersReduced && (
+        {!prefersReduced && !deskInView && (
           <div
             style={{
               position: "fixed",
               inset: 0,
               zIndex: 1,
               pointerEvents: "none",
-              opacity: deskInView ? 0 : 1,
-              transition: "opacity 320ms ease",
+              opacity: 1,
             }}
           >
             <Suspense fallback={null}>
@@ -845,7 +866,10 @@ export default function LandingPage() {
           </div>
         </div>
         <Footer />
-        <DeskSection onDeskInViewChange={setDeskInView} />
+        <DeskSection
+          sectionId="desk-section"
+          onDeskInViewChange={setDeskInView}
+        />
       </div>
     </>
   );

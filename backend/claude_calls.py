@@ -157,7 +157,15 @@ CURRENT TRIGGER:
 - Type: {trigger_type}
 - Detail: {safe_trigger_detail}
 
-Generate ONE gentle response (1 sentence preferred, max 2).
+Generate ONE gentle spoken cue (1 sentence preferred, max 2).
+
+Trigger style guide:
+- If trigger type is check_in: ask one curious, specific question about what they are doing now.
+- If trigger type is erase_loop or erase_localized: softly notice revisiting or reworking, without interpretation.
+- If trigger type is stroke_surge: notice momentum or energy in marks, without labeling emotion.
+- If trigger type is inactivity: notice the pause and invite a tiny check-in.
+- If trigger type is color_shift: notice change in palette plainly.
+- If trigger type is quadrant_focus: notice attention staying in one area.
 
 Rules:
 - Ground every response in either CURRENT TRIGGER detail or exact user words from conversation.
@@ -168,6 +176,7 @@ Rules:
 - Never interpret or explain meaning. Never say "this means...".
 - Do NOT use stage directions, brackets, quotation marks, emojis, or delivery cues.
 - Avoid reflexive fillers like "hmm" unless the user just used a filler word.
+- Never mention crisis resources unless the user explicitly says they want to harm themselves.
 - Output only the words to be spoken. Nothing else.
 
 Good examples:

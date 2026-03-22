@@ -13,6 +13,8 @@ import music3Src from "../assets/Music3.mp3";
 
 const AppContext = createContext(null);
 const TRACKS = [music1Src, music2Src, music3Src];
+const USER_NAME_KEY = "arverie_user_name";
+const SOUND_ON_KEY = "arverie_sound_on";
 
 function getOrCreateUserId() {
   const key = "arverie_user_id";
@@ -22,6 +24,16 @@ function getOrCreateUserId() {
     localStorage.setItem(key, id);
   }
   return id;
+}
+
+function getStoredUserName() {
+  return localStorage.getItem(USER_NAME_KEY) || "";
+}
+
+function getStoredSoundOn() {
+  const stored = localStorage.getItem(SOUND_ON_KEY);
+  if (stored == null) return true;
+  return stored === "1";
 }
 
 const defaultSession = {
@@ -61,23 +73,40 @@ const defaultSession = {
 };
 
 export function AppProvider({ children }) {
-  const [soundOn, setSoundOn] = useState(true);
+  const [soundOn, setSoundOn] = useState(getStoredSoundOn);
   const [session, setSession] = useState(defaultSession);
   const [pastSessions, setPastSessions] = useState([]);
+  const [user, setUser] = useState(() => ({
+    id: defaultSession.userId,
+    name: getStoredUserName(),
+  }));
   const audioRef = useRef(null);
   const trackIdx = useRef(0);
   const hasStarted = useRef(false);
   const soundOnRef = useRef(true);
 
+  const refreshPastSessions = useCallback(
+    async (userIdArg) => {
+      const userId = userIdArg || user.id;
+      if (!userId) return;
+      try {
+        const data = await api.getSessions(userId);
+        setPastSessions(data?.sessions || []);
+      } catch {
+        setPastSessions([]);
+      }
+    },
+    [user.id],
+  );
+
   useEffect(() => {
-    const userId = defaultSession.userId;
-    if (!userId) return;
-    api
-      .getSessions(userId)
-      .then((data) => {
-        if (data?.sessions?.length) setPastSessions(data.sessions);
-      })
-      .catch(() => {});
+    refreshPastSessions(defaultSession.userId);
+  }, [refreshPastSessions]);
+
+  const setUserName = useCallback((name) => {
+    const nextName = (name || "").trim();
+    localStorage.setItem(USER_NAME_KEY, nextName);
+    setUser((prev) => ({ ...prev, name: nextName }));
   }, []);
 
   // Initialize looping ambient music playlist once.
@@ -87,44 +116,67 @@ export function AppProvider({ children }) {
     audio.volume = 0.35;
     audioRef.current = audio;
 
+    const attemptStart = () => {
+      if (!soundOnRef.current) return;
+      audio
+        .play()
+        .then(() => {
+          hasStarted.current = true;
+        })
+        .catch(() => {});
+    };
+
     function advanceTrack() {
       trackIdx.current = (trackIdx.current + 1) % TRACKS.length;
       audio.src = TRACKS[trackIdx.current];
       audio.load();
       if (soundOnRef.current) {
-        audio.play().catch(() => {});
+        attemptStart();
       }
     }
 
     audio.addEventListener("ended", advanceTrack);
+    audio.addEventListener("canplay", attemptStart);
+
+    const unlockEvents = ["pointerdown", "touchstart", "keydown"];
+    const unlockPlayback = () => {
+      if (hasStarted.current) return;
+      attemptStart();
+    };
+    unlockEvents.forEach((eventName) => {
+      window.addEventListener(eventName, unlockPlayback, { passive: true });
+    });
 
     const timer = setTimeout(() => {
       if (!hasStarted.current && soundOnRef.current) {
-        audio
-          .play()
-          .then(() => {
-            hasStarted.current = true;
-          })
-          .catch(() => {});
+        attemptStart();
       }
     }, 3000);
 
     return () => {
       clearTimeout(timer);
       audio.removeEventListener("ended", advanceTrack);
+      audio.removeEventListener("canplay", attemptStart);
+      unlockEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, unlockPlayback);
+      });
       audio.pause();
     };
   }, []);
 
   useEffect(() => {
     soundOnRef.current = soundOn;
+    localStorage.setItem(SOUND_ON_KEY, soundOn ? "1" : "0");
     const audio = audioRef.current;
     if (!audio) return;
 
     if (soundOn) {
-      if (hasStarted.current) {
-        audio.play().catch(() => {});
-      }
+      audio
+        .play()
+        .then(() => {
+          hasStarted.current = true;
+        })
+        .catch(() => {});
     } else {
       audio.pause();
     }
@@ -148,6 +200,8 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider
       value={{
+        user,
+        setUserName,
         soundOn,
         setSoundOn,
         session,
@@ -155,6 +209,7 @@ export function AppProvider({ children }) {
         resetSession,
         appendDialogue,
         pastSessions,
+        refreshPastSessions,
       }}
     >
       {children}

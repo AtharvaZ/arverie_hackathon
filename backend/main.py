@@ -61,8 +61,32 @@ session_intake_data: dict[str, dict] = {}  # themes, transcript, mood per sessio
 
 
 async def _inject_opening_after_delay(hume: HumeClient, text: str) -> None:
-    """Wait briefly for the Hume WS to establish, then inject the intake opening response."""
+    """Wait briefly for the Hume WS to establish, then inject the intake opening response.
+
+    After the initial 1.5 s sleep, retries for up to 5 more seconds in 0.5 s increments
+    if the Hume connection is not yet open. Then waits briefly for readiness so
+    session settings (including KORA voice) are applied before speaking.
+    Skips with a warning if still not open/ready.
+    """
     await asyncio.sleep(1.5)
+    if not hume._hume_is_open():
+        waited = 0.0
+        max_wait = 5.0
+        step = 0.5
+        while waited < max_wait and not hume._hume_is_open():
+            await asyncio.sleep(step)
+            waited += step
+        if not hume._hume_is_open():
+            logger.warning(
+                f"Hume WS still not open after {1.5 + max_wait:.1f}s — "
+                f"skipping opening_response injection for session {hume.session_id}"
+            )
+            return
+    if not await hume.wait_until_ready(timeout_seconds=4.0):
+        logger.warning(
+            f"Hume not ready for opening_response injection in session {hume.session_id}"
+        )
+        return
     try:
         await hume.inject_trigger(text)
         logger.info(f"Injected intake opening_response via scheduled task: {text[:60]}")
@@ -94,15 +118,22 @@ async def session_intake(body: IntakeRequest) -> IntakeResponse:
             "mood_checkin": body.mood_checkin,
             "drawing_prompt": result.drawing_prompt,
             "opening_response": result.opening_response,
+            "opening_injected": False,
         }
         logger.info(
             f"Intake processed for session {body.session_id}: themes={result.themes}"
         )
         # If Hume WS is already connected, inject immediately
         hume = active_hume_sessions.get(body.session_id)
-        if hume:
+        if hume and not session_intake_data[body.session_id].get("opening_injected"):
             try:
-                await hume.inject_trigger(result.opening_response)
+                if await hume.wait_until_ready(timeout_seconds=4.0):
+                    await hume.inject_trigger(result.opening_response)
+                    session_intake_data[body.session_id]["opening_injected"] = True
+                else:
+                    logger.warning(
+                        f"Skipping immediate opening_response injection until Hume is ready: session {body.session_id}"
+                    )
             except Exception as inject_err:
                 logger.error(f"Hume intake injection failed (non-fatal): {inject_err}")
         return result
@@ -317,13 +348,21 @@ async def hume_session(websocket: WebSocket) -> None:
         session_intake_data[session_id] = {}
         logger.info(f"Auto-recovered session state for {session_id}")
 
+    existing_hume = active_hume_sessions.get(session_id)
+    if existing_hume:
+        logger.info(f"Closing previous Hume client for session {session_id} before replacing WebSocket")
+        await existing_hume.close()
+
     hume_client = HumeClient(session_id)
     active_hume_sessions[session_id] = hume_client
 
     # Inject pending intake opening_response if intake already completed before WS connected
     intake = session_intake_data.get(session_id, {})
     opening_response = intake.get("opening_response")
-    if opening_response:
+    opening_injected = bool(intake.get("opening_injected"))
+    if opening_response and not opening_injected:
+        intake["opening_injected"] = True
+        session_intake_data[session_id] = intake
         asyncio.create_task(_inject_opening_after_delay(hume_client, opening_response))
 
     try:
