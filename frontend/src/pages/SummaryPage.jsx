@@ -15,6 +15,21 @@ const FALLBACK_QUESTIONS = [
   "Is there anything that surprised you while drawing?",
 ];
 
+function safeParseJSON(rawValue, fallbackValue) {
+  if (!rawValue) return fallbackValue;
+  try {
+    return JSON.parse(rawValue);
+  } catch {
+    return fallbackValue;
+  }
+}
+
+function readPersistedEndPayload() {
+  const parsed = safeParseJSON(localStorage.getItem("session.endPayload"), {});
+  if (!parsed || typeof parsed !== "object") return {};
+  return parsed;
+}
+
 function LoadingDots() {
   return (
     <div
@@ -59,11 +74,14 @@ export default function SummaryPage() {
   const [fullText, setFullText] = useState("");
   const [displayed, setDisplayed] = useState("");
   const intervalRef = useRef(null);
+  const persistedEndPayload = readPersistedEndPayload();
 
   const questions =
     session.reflectionQuestions?.length > 0
       ? session.reflectionQuestions
-      : FALLBACK_QUESTIONS;
+      : persistedEndPayload.reflection_questions?.length > 0
+        ? persistedEndPayload.reflection_questions
+        : FALLBACK_QUESTIONS;
 
   // Initialize answers array when questions are known
   useEffect(() => {
@@ -75,9 +93,16 @@ export default function SummaryPage() {
     : 0;
   const durationMin = Math.max(1, Math.round(durationSec / 60));
 
+  const summaryPalette =
+    session.canvasSummary?.colors_used?.length > 0
+      ? session.canvasSummary.colors_used
+      : persistedEndPayload.canvas_summary?.colors_used || [];
+
   const colorsUsed =
-    session.paintColors?.length > 0
-      ? Array.from(new Set(session.paintColors)).slice(0, 5)
+    session.paintColors?.length > 0 || summaryPalette.length > 0
+      ? Array.from(
+          new Set([...(session.paintColors || []), ...summaryPalette]),
+        ).slice(0, 5)
       : ["#2d4a3e", "#7a3b2e", "#b07a3a"];
 
   // Typewriter effect
@@ -97,12 +122,23 @@ export default function SummaryPage() {
   async function handleGenerateLetter() {
     setStage("loading");
     try {
+      const effectiveCanvasSummary =
+        session.canvasSummary && Object.keys(session.canvasSummary).length > 0
+          ? session.canvasSummary
+          : persistedEndPayload.canvas_summary || {};
+      const effectiveVisionDescription =
+        session.visionDescription ||
+        persistedEndPayload.vision_description ||
+        "";
+      const effectiveDrawingUrl =
+        session.drawingUrl || persistedEndPayload.drawing_url || "";
+
       const fullSessionData = {
-        canvas_summary: session.canvasSummary || {},
-        vision_description: session.visionDescription || "",
+        canvas_summary: effectiveCanvasSummary,
+        vision_description: effectiveVisionDescription,
         dialogue_history: session.dialogueHistory || [],
         reflection_questions: questions,
-        drawing_url: session.drawingUrl || "",
+        drawing_url: effectiveDrawingUrl,
         intake_themes: session.themes || [],
       };
 
@@ -121,6 +157,8 @@ export default function SummaryPage() {
         );
         letter = res.letter || FALLBACK_LETTER;
         await refreshPastSessions(session.userId);
+        localStorage.removeItem("session.endPayload");
+        localStorage.removeItem("session.drawingDataURL");
       }
 
       setFullText(letter);

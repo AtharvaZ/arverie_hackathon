@@ -8,6 +8,18 @@ const WS_BASE = apiUrl.startsWith("http")
 const SAMPLE_RATE = 16000;
 const DEFAULT_OUTPUT_SAMPLE_RATE = 48000;
 const BUFFER_SIZE = 4096;
+const MAX_AUDIO_B64_CHARS = 12000;
+const FILLER_SUPPRESSION_MS = 2500;
+
+function isFillerUtterance(value) {
+  if (typeof value !== "string") return false;
+  const text = value.trim().toLowerCase();
+  if (!text) return false;
+  if (text.length > 20) return false;
+  return /^(h+m+|h+mm+|h+mmm+|um+|uh+|mm+|mmm+|huh+|hm+|okay+|ok+|k+)[.!?]*$/.test(
+    text,
+  );
+}
 
 function floatTo16BitPCM(floatSamples) {
   const buffer = new Int16Array(floatSamples.length);
@@ -164,6 +176,7 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
   const playQueueRef = useRef([]);
   const isPlayingRef = useRef(false);
   const connectGenerationRef = useRef(0);
+  const suppressAssistantUntilRef = useRef(0);
 
   // Play the next chunk from the queue
   const playNext = useCallback(() => {
@@ -205,6 +218,9 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
       const type = data.type || "";
 
       if (type === "audio_output") {
+        if (Date.now() < suppressAssistantUntilRef.current) {
+          return;
+        }
         // Queue audio chunk for sequential playback
         const hintedRate = Number(data.sample_rate);
         const decoded = decodeAudioOutput(data.data, hintedRate);
@@ -212,8 +228,19 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
         if (!isPlayingRef.current) playNext();
       } else if (type === "user_message") {
         const text = data.message?.content ?? "";
+        if (isFillerUtterance(text)) {
+          suppressAssistantUntilRef.current =
+            Date.now() + FILLER_SUPPRESSION_MS;
+          playQueueRef.current = [];
+          isPlayingRef.current = false;
+          setIsSpeaking(false);
+          return;
+        }
         if (text && onTranscript) onTranscript(text);
       } else if (type === "assistant_message") {
+        if (Date.now() < suppressAssistantUntilRef.current) {
+          return;
+        }
         const text = data.message?.content ?? "";
         if (text && onAIMessage) onAIMessage(text);
       } else if (type === "user_interruption") {
@@ -232,7 +259,7 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
   }, [handleMessage]);
 
   const connect = useCallback(
-    async (sessionId) => {
+    async (sessionId, wsToken = null) => {
       if (wsRef.current) return; // already connected
       const generation = ++connectGenerationRef.current;
 
@@ -249,9 +276,9 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
       audioCtxRef.current = ctx;
 
       // Open WebSocket to backend proxy
-      const ws = new WebSocket(
-        `${WS_BASE}/hume/session?session_id=${sessionId}`,
-      );
+      const query = new URLSearchParams({ session_id: sessionId });
+      if (wsToken) query.set("ws_token", wsToken);
+      const ws = new WebSocket(`${WS_BASE}/hume/session?${query.toString()}`);
       wsRef.current = ws;
 
       handleMessageRef.current = handleMessage;
@@ -349,6 +376,7 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
           const floatData = e.inputBuffer.getChannelData(0);
           const int16 = floatTo16BitPCM(floatData);
           const b64 = int16ToBase64(int16);
+          if (b64.length > MAX_AUDIO_B64_CHARS) return;
           ws.send(JSON.stringify({ type: "audio_input", data: b64 }));
         };
 

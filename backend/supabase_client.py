@@ -27,7 +27,7 @@ def create_session(user_id: str) -> str:
         raise
 
 
-def get_sessions(user_id: str, limit: int = 7) -> list[dict]:
+def get_sessions(user_id: str, limit: int = 50) -> list[dict]:
     """Return last N sessions for a user, ordered by created_at DESC."""
     try:
         client = get_supabase()
