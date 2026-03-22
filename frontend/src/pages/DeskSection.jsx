@@ -310,30 +310,36 @@ const DESK_CSS = `
   inset:20px;
   border-radius:1px;
   background:
-    radial-gradient(circle at 72% 20%,rgba(191,129,62,.34),transparent 42%),
-    linear-gradient(170deg,rgba(188,166,120,.3),rgba(145,116,76,.08) 45%,rgba(114,86,52,.2) 100%);
+    radial-gradient(circle at 70% 22%,rgba(247,210,142,.62),rgba(236,182,98,.36) 18%,transparent 44%),
+    linear-gradient(180deg,rgba(128,174,192,.55) 0%,rgba(109,154,166,.42) 40%,rgba(95,128,102,.62) 41%,rgba(88,114,83,.72) 100%);
   overflow:hidden;
 }
 .room-art-canvas::before,
 .room-art-canvas::after {
   content:"";
   position:absolute;
-  border-radius:999px;
-  background:rgba(96,65,35,.26);
 }
 .room-art-canvas::before {
-  width:78%;
-  height:2px;
-  left:10%;
-  top:58%;
-  transform:rotate(-10deg);
+  left:-8%;
+  right:-10%;
+  bottom:20%;
+  height:48%;
+  border-radius:48% 52% 0 0;
+  background:
+    radial-gradient(ellipse at 28% 30%,rgba(127,162,115,.82),rgba(90,124,82,.88) 58%,rgba(73,98,68,.94) 100%);
+  box-shadow:inset 0 10px 16px rgba(173,210,141,.18);
 }
 .room-art-canvas::after {
-  width:40%;
-  height:28%;
-  left:19%;
-  top:22%;
-  opacity:.75;
+  left:32%;
+  bottom:-6%;
+  width:36%;
+  height:60%;
+  border-radius:50% 50% 44% 44%;
+  transform:rotate(-2deg);
+  background:
+    linear-gradient(180deg,rgba(227,199,150,.92) 0%,rgba(184,151,102,.86) 36%,rgba(127,96,59,.9) 72%,rgba(99,74,43,.94) 100%);
+  filter:blur(.2px);
+  opacity:.94;
 }
 
 .room-shelf {
