@@ -6,7 +6,7 @@ import time
 import json
 from functools import partial
 from uuid import uuid4
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Header
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Header, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
@@ -215,13 +215,9 @@ _extra_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://arverie.onrender.com",
         "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://localhost:5176",
-        "http://localhost:4173",
         "http://127.0.0.1:5173",
-        "http://127.0.0.1:4173",
         *_extra_origins,
     ],
     allow_credentials=True,
@@ -337,6 +333,22 @@ async def _inject_opening_after_delay(hume: HumeClient, text: str) -> None:
         logger.info(f"Injected intake opening_response via scheduled task: {text[:60]}")
     except Exception as e:
         logger.error(f"Scheduled intake injection failed: {e}")
+
+
+@app.get("/health")
+async def health_get() -> JSONResponse:
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "ok",
+            "service": "arverie-backend",
+        },
+    )
+
+
+@app.head("/health")
+async def health_head() -> Response:
+    return Response(status_code=200)
 
 
 @app.post("/session/start", response_model=StartSessionResponse)
