@@ -10,8 +10,8 @@ import React, { useEffect, useRef, useState, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { gsap } from "gsap";
+import { useApp } from "../context/AppContext";
 import logoSvgRaw from "../assets/logo.svg?raw";
-import logoAnimation from "../assets/logo-animation.mp4";
 import heroBg from "../assets/hero_background.png";
 import DeskSection from "./DeskSection";
 
@@ -29,99 +29,161 @@ const prefersReduced =
 // ─── Footer ──────────────────────────────────────────────────────────────────
 function Footer() {
   return (
-    <footer className="w-full bg-[#1A383B] text-[#D9C396] font-serif py-32 flex flex-col items-center justify-center relative z-10 border-t border-[#D9C396]/10">
-      <h2 className="text-4xl italic mb-16 tracking-widest text-[#FAF6E6]">
+    <footer
+      style={{
+        background: "transparent",
+        padding: "120px 48px 160px",
+        position: "relative",
+        zIndex: 10,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+      }}
+    >
+      <h2
+        style={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: "clamp(28px, 4vw, 48px)",
+          fontStyle: "italic",
+          letterSpacing: "8px",
+          color: "#FAF6E6",
+          textShadow:
+            "0 2px 20px rgba(0,0,0,0.7), 0 0 40px rgba(200,160,40,0.2)",
+          marginBottom: "64px",
+          textAlign: "center",
+        }}
+      >
         Welcome to Arverié
       </h2>
-      <div className="flex flex-col md:flex-row gap-16 px-12 max-w-6xl w-full text-center">
-        <div className="flex-1 flex flex-col items-center">
-          <div className="w-16 h-16 rounded-full bg-[#1A383B] border border-[#D9C396]/20 flex items-center justify-center mb-6 shadow-xl">
-            <svg
-              className="w-6 h-6 text-[#D9C396]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          gap: "24px",
+          maxWidth: "1100px",
+          width: "100%",
+          alignItems: "flex-start",
+        }}
+      >
+        {[
+          {
+            icon: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z",
+            title: "Expressive Canvas",
+            desc: "Pour your feelings onto an open canvas. A distraction-free space where your strokes reflect your inner state.",
+            offset: 0,
+          },
+          {
+            icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
+            title: "Empathic AI",
+            desc: "Receive warm, gentle reflections on your art. Our AI guide helps you unpack your thoughts securely.",
+            offset: -16,
+          },
+          {
+            icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
+            title: "Mood Journal",
+            desc: "Collect your daily reflections. Turn your emotional history into a timeless, beautifully bound archive.",
+            offset: -8,
+          },
+        ].map((item, i) => (
+          <motion.div
+            key={i}
+            whileHover={{ y: -8, transition: { duration: 0.28 } }}
+            style={{
+              transform: `translateY(${item.offset}px)`,
+              background: "rgba(20, 16, 12, 0.58)",
+              backdropFilter: "blur(18px)",
+              WebkitBackdropFilter: "blur(18px)",
+              border: "0.5px solid rgba(200,160,64,0.18)",
+              borderRadius: "14px",
+              padding: "40px 32px",
+              boxShadow:
+                "0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(200,160,64,0.08)",
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "16px",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                width: "64px",
+                height: "64px",
+                borderRadius: "50%",
+                background: "rgba(200,160,64,0.08)",
+                border: "1px solid rgba(200,160,64,0.22)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: "8px",
+              }}
             >
-              <path
+              <svg
+                width="24"
+                height="24"
+                fill="none"
+                stroke="rgba(200,160,64,0.9)"
+                strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth="1.5"
-                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-              />
-            </svg>
-          </div>
-          <h3 className="text-2xl mb-4 text-[#E3CFA7] font-light">
-            Expressive Canvas
-          </h3>
-          <p className="font-sans text-sm tracking-wide opacity-75 leading-relaxed font-light">
-            Pour your feelings onto an open canvas. A distraction-free space
-            where your strokes reflect your inner state.
-          </p>
-        </div>
-
-        <div className="flex-1 flex flex-col items-center">
-          <div className="w-16 h-16 rounded-full bg-[#1A383B] border border-[#D9C396]/20 flex items-center justify-center mb-6 shadow-xl">
-            <svg
-              className="w-6 h-6 text-[#D9C396]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+                viewBox="0 0 24 24"
+              >
+                <path d={item.icon} />
+              </svg>
+            </div>
+            <h3
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "22px",
+                fontWeight: 300,
+                color: "#E3CFA7",
+                margin: 0,
+              }}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="1.5"
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-              />
-            </svg>
-          </div>
-          <h3 className="text-2xl mb-4 text-[#E3CFA7] font-light">
-            Empathic AI
-          </h3>
-          <p className="font-sans text-sm tracking-wide opacity-75 leading-relaxed font-light">
-            Receive warm, gentle reflections on your art. Our AI guide helps you
-            unpack your thoughts securely.
-          </p>
-        </div>
-
-        <div className="flex-1 flex flex-col items-center">
-          <div className="w-16 h-16 rounded-full bg-[#1A383B] border border-[#D9C396]/20 flex items-center justify-center mb-6 shadow-xl">
-            <svg
-              className="w-6 h-6 text-[#D9C396]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+              {item.title}
+            </h3>
+            <p
+              style={{
+                fontFamily: "sans-serif",
+                fontSize: "13px",
+                letterSpacing: "0.5px",
+                lineHeight: 1.7,
+                color: "rgba(245,235,200,0.65)",
+                margin: 0,
+              }}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="1.5"
-                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-              />
-            </svg>
-          </div>
-          <h3 className="text-2xl mb-4 text-[#E3CFA7] font-light">
-            Mood Journal
-          </h3>
-          <p className="font-sans text-sm tracking-wide opacity-75 leading-relaxed font-light">
-            Collect your daily reflections. Turn your emotional history into a
-            timeless, beautifully bound archive.
-          </p>
-        </div>
+              {item.desc}
+            </p>
+          </motion.div>
+        ))}
       </div>
+      <p
+        style={{
+          marginTop: "80px",
+          fontSize: "11px",
+          letterSpacing: "2px",
+          color: "rgba(245,239,224,0.3)",
+          textTransform: "uppercase",
+        }}
+      >
+        © 2025 Arverié · All rights reserved
+      </p>
     </footer>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
-  const [soundOn, setSoundOn] = useState(true);
+  const { soundOn, setSoundOn } = useApp();
+  const [deskInView, setDeskInView] = useState(false);
   const navigate = useNavigate();
 
   // Layout refs
   const sceneRef = useRef(null);
   const logoContainerRef = useRef(null);
   const svgContainerRef = useRef(null);
+  const logoSvgRef = useRef(null);
   const glowRef = useRef(null);
   const pulseRef = useRef(null);
   const titleRef = useRef(null);
@@ -143,9 +205,20 @@ export default function LandingPage() {
   // ─── Mobile check ───────────────────────────────────────────────
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
+  // ─── Body class for landing page background ─────────────────────────────
+  useEffect(() => {
+    document.body.classList.add("landing-page");
+    return () => document.body.classList.remove("landing-page");
+  }, []);
+
   // ─── Main GSAP timeline ─────────────────────────────────────────────────
   useEffect(() => {
     const letters = titleRef.current ? [...titleRef.current.children] : [];
+    const logoPaths = logoSvgRef.current
+      ? [...logoSvgRef.current.querySelectorAll("path")].filter(
+          (p) => p.getAttribute("fill") !== "#000000",
+        )
+      : [];
 
     if (prefersReduced) {
       gsap.set(
@@ -182,6 +255,7 @@ export default function LandingPage() {
     gsap.set(subtitleRef.current, { opacity: 0, y: 10 });
     gsap.set(btnRef.current, { opacity: 0, y: 10 });
     gsap.set(scrollHintRef.current, { opacity: 0 });
+    gsap.set(logoPaths, { opacity: 0 });
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ delay: 0.1 });
@@ -211,6 +285,14 @@ export default function LandingPage() {
         },
         0.6,
       );
+
+      if (logoPaths.length) {
+        tl.to(
+          logoPaths,
+          { opacity: 1, duration: 0.01, stagger: 0.004, ease: "none" },
+          0.8,
+        );
+      }
 
       // ─ 1.2s  Glow materializes ──────────────────────────────────────────
       tl.to(
@@ -358,9 +440,10 @@ export default function LandingPage() {
       .nav-logo { height: 36px; width: auto; max-width: 120px; line-height: 0; flex-shrink: 0; overflow: hidden; }
       .nav-logo svg { height: 100%; width: auto; max-width: 100%; display: block; }
       .nav-logo svg path[fill="#000000"] { display: none; }
+      .hero-logo-svg svg path[fill="#000000"] { display: none; }
 
       .landscape-vivid {
-        position: absolute;
+        position: fixed;
         inset: 0;
         background-image: url('${heroBg}');
         background-size: cover;
@@ -368,33 +451,45 @@ export default function LandingPage() {
         opacity: 1;
         filter: saturate(1.1) brightness(1.0);
         pointer-events: none;
-        z-index: 1;
+        z-index: 0;
       }
     `}</style>
       <div>
+        {/* ── Fixed background image ── */}
+        <div className="landscape-vivid" />
+        {/* ── Fixed p5 canvas (dulling overlay) ── */}
+        {!prefersReduced && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 1,
+              pointerEvents: "none",
+              opacity: deskInView ? 0 : 1,
+              transition: "opacity 320ms ease",
+            }}
+          >
+            <Suspense fallback={null}>
+              <HeroCanvasP5 />
+            </Suspense>
+          </div>
+        )}
         <div
           ref={sceneRef}
           style={{
             width: "100vw",
             height: "100vh",
-            background: "#1A1614",
+            background: "transparent",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             position: "relative",
+            zIndex: 2,
             perspective: "1000px",
             overflow: "hidden",
           }}
         >
-          {/* ── Watercolor landscape layers ── */}
-          <div className="landscape-vivid" />
-          {!prefersReduced && (
-            <Suspense fallback={null}>
-              <HeroCanvasP5 />
-            </Suspense>
-          )}
-
           {/* ── Navbar ── */}
           <nav
             ref={navRef}
@@ -534,23 +629,23 @@ export default function LandingPage() {
                 }}
               />
 
-              {/* Animated logo video */}
-              <video
+              {/* Animated logo SVG */}
+              <div
                 ref={svgContainerRef}
-                src={logoAnimation}
-                autoPlay
-                muted
-                playsInline
                 style={{
                   position: "relative",
                   zIndex: 1,
                   width: "100%",
-                  display: "block",
-                  mixBlendMode: "screen",
                   transformOrigin: "center center",
                   willChange: "transform, opacity, filter",
                 }}
-              />
+              >
+                <div
+                  ref={logoSvgRef}
+                  className="hero-logo-svg"
+                  dangerouslySetInnerHTML={{ __html: logoSvgRaw }}
+                />
+              </div>
             </div>
 
             {/* ── "ARVERIÉ" — individual letters for 3D stagger ── */}
@@ -750,7 +845,7 @@ export default function LandingPage() {
           </div>
         </div>
         <Footer />
-        <DeskSection />
+        <DeskSection onDeskInViewChange={setDeskInView} />
       </div>
     </>
   );

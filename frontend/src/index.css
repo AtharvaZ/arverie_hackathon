@@ -219,3 +219,5 @@ input[type='range'].brush-slider::-webkit-slider-thumb {
   mix-blend-mode: multiply;
   /* This makes the white bg transparent on parchment backgrounds */
 }
+
+body.landing-page { background: #0A0806 !important; }
