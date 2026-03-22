@@ -141,6 +141,7 @@ function Footer() {
         {footerCards.map((item, i) => (
           <motion.div
             key={i}
+            className="footer-glass-card"
             initial={{ opacity: 0, y: 28 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.3 }}
@@ -155,8 +156,6 @@ function Footer() {
               transform: `translateY(${item.offset}px)`,
               background:
                 "linear-gradient(165deg, rgba(35, 78, 49, 0.32), rgba(20, 50, 31, 0.38))",
-              backdropFilter: "blur(18px)",
-              WebkitBackdropFilter: "blur(18px)",
               border: "1px solid rgba(166, 244, 185, 0.24)",
               borderRadius: "14px",
               padding: "40px 32px",
@@ -283,6 +282,7 @@ function Footer() {
 export default function LandingPage() {
   const { soundOn, setSoundOn } = useApp();
   const [deskInView, setDeskInView] = useState(false);
+  const [showHeroOverlay, setShowHeroOverlay] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -608,6 +608,44 @@ export default function LandingPage() {
     [],
   );
 
+  useEffect(() => {
+    function updateHeroOverlayVisibility() {
+      const deskSection = document.getElementById("desk-section");
+      if (!deskSection) {
+        setShowHeroOverlay(!deskInView);
+        return;
+      }
+
+      // Keep the dulling overlay until the desk floor-top line gets close to
+      // the top of the viewport ("less space left"), then undull.
+      const floorLine = deskSection.querySelector(".room-floor");
+      if (floorLine) {
+        const floorTop = floorLine.getBoundingClientRect().top;
+        const floorNearTop =
+          floorTop <= Math.max(120, window.innerHeight * 0.16);
+        setShowHeroOverlay(!floorNearTop && !deskInView);
+        return;
+      }
+
+      // Fallback in case floor line is unavailable.
+      const deskTop = deskSection.getBoundingClientRect().top;
+      setShowHeroOverlay(
+        !(deskTop <= window.innerHeight * 0.95) && !deskInView,
+      );
+    }
+
+    updateHeroOverlayVisibility();
+    window.addEventListener("scroll", updateHeroOverlayVisibility, {
+      passive: true,
+    });
+    window.addEventListener("resize", updateHeroOverlayVisibility);
+
+    return () => {
+      window.removeEventListener("scroll", updateHeroOverlayVisibility);
+      window.removeEventListener("resize", updateHeroOverlayVisibility);
+    };
+  }, [deskInView]);
+
   return (
     <>
       <style>{`
@@ -615,6 +653,38 @@ export default function LandingPage() {
       .nav-logo svg { height: 100%; width: auto; max-width: 100%; display: block; }
       .nav-logo svg path[fill="#000000"] { display: none; }
       .hero-logo-svg svg path[fill="#000000"] { display: none; }
+
+      :root { --landing-vh: 100vh; }
+      @supports (height: 100dvh) {
+        :root { --landing-vh: 100dvh; }
+      }
+
+      .landing-hero-shell {
+        height: var(--landing-vh);
+        min-height: 100vh;
+      }
+
+      .landing-nav-glass {
+        background: rgba(26,22,20,0.84);
+      }
+
+      .footer-glass-card {
+        background: linear-gradient(165deg, rgba(35, 78, 49, 0.42), rgba(20, 50, 31, 0.5));
+      }
+
+      @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        .landing-nav-glass {
+          background: rgba(26,22,20,0.72);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+        }
+
+        .footer-glass-card {
+          background: linear-gradient(165deg, rgba(35, 78, 49, 0.32), rgba(20, 50, 31, 0.38));
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+        }
+      }
 
       .landscape-vivid {
         position: fixed;
@@ -632,7 +702,7 @@ export default function LandingPage() {
         {/* ── Fixed background image ── */}
         <div className="landscape-vivid" />
         {/* ── Fixed p5 canvas (dulling overlay) ── */}
-        {!prefersReduced && !deskInView && (
+        {!prefersReduced && showHeroOverlay && (
           <div
             style={{
               position: "fixed",
@@ -649,9 +719,9 @@ export default function LandingPage() {
         )}
         <div
           ref={sceneRef}
+          className="landing-hero-shell"
           style={{
             width: "100vw",
-            height: "100vh",
             background: "transparent",
             display: "flex",
             flexDirection: "column",
@@ -666,6 +736,7 @@ export default function LandingPage() {
           {/* ── Navbar ── */}
           <nav
             ref={navRef}
+            className="landing-nav-glass"
             style={{
               position: "fixed",
               top: 0,
@@ -676,9 +747,6 @@ export default function LandingPage() {
               alignItems: "center",
               justifyContent: "space-between",
               padding: "0 28px",
-              background: "rgba(26,22,20,0.72)",
-              backdropFilter: "blur(14px)",
-              WebkitBackdropFilter: "blur(14px)",
               borderBottom: "1px solid rgba(200,160,64,0.15)",
               zIndex: 50,
             }}

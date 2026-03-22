@@ -41,13 +41,26 @@ const DESK_CSS = `
 }
 .room-wall {
   --window-top: 15%;
-  --window-width: 462px;
-  --window-height: 276px;
+  --window-scale: 1;
+  --window-width-base: 462px;
+  --window-width: calc(var(--window-width-base) * var(--window-scale));
+  --window-height-ratio: 0.5974;
+  --window-height: calc(var(--window-width) * var(--window-height-ratio));
   --window-gap: 68px;
   position:absolute;
   inset:0;
   pointer-events:none;
   z-index:1;
+}
+
+/* Explicit Safari class makes window-size testing deterministic. */
+.scene-outer.is-safari-browser .room-wall {
+  --window-scale: 0.90;
+}
+@media (min-width: 1201px) {
+  .scene-outer.is-safari-browser .room-wall {
+    --window-scale: 0.84;
+  }
 }
 .room-wall-piece {
   position:absolute;
@@ -150,7 +163,7 @@ const DESK_CSS = `
   transform:translateX(-50%);
   display:flex;
   gap:var(--window-gap);
-  pointer-events:none; z-index:4;
+  pointer-events:none; z-index:6;
   will-change:transform,opacity;
 }
 .room-window-panel { display:flex; flex-direction:column; }
@@ -161,6 +174,49 @@ const DESK_CSS = `
   background:transparent;
   border-radius:4px 4px 0 0;
   box-shadow:0 8px 20px rgba(50,28,5,.2);
+  z-index:1;
+}
+.room-window-curtain {
+  position:absolute;
+  inset:1px;
+  border-radius:2px;
+  overflow:hidden;
+  pointer-events:none;
+  z-index:2;
+}
+.room-window-curtain::before,
+.room-window-curtain::after {
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:50%;
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.22) 0 3px,rgba(255,255,255,.08) 3px 7px),
+    linear-gradient(180deg,rgba(255,255,255,.78),rgba(255,255,255,.58) 62%,rgba(245,245,245,.42) 100%);
+  border:1px solid rgba(255,255,255,.54);
+  backdrop-filter: blur(.7px);
+  -webkit-backdrop-filter: blur(.7px);
+}
+.room-window-curtain::before {
+  left:0;
+  border-right:none;
+  border-radius:2px 0 0 2px;
+}
+.room-window-curtain::after {
+  right:0;
+  border-left:none;
+  border-radius:0 2px 2px 0;
+}
+.room-window-curtain-center {
+  position:absolute;
+  left:50%;
+  top:0;
+  bottom:0;
+  width:4px;
+  transform:translateX(-50%);
+  background:rgba(188,165,120,.7);
+  z-index:3;
 }
 .room-window-trim::before {
   content:"";
@@ -172,14 +228,18 @@ const DESK_CSS = `
     inset 0 3px 8px rgba(0,0,0,.1);
   pointer-events:none;
 }
-/* Bottom sill ledge */
-.room-window-sill {
-  display:block;
-  height:8px;
-  margin:0 -4px;
-  background:linear-gradient(to bottom,#CCBE7D,#9D7633);
+/* Single sill strip below both windows */
+.room-window-sill-strip {
+  position:absolute;
+  left:50%;
+  top:calc(var(--window-height) + 12px);
+  width:calc(var(--window-width) * 2 + var(--window-gap) + 36px);
+  height:14px;
+  transform:translateX(-50%);
   border-radius:0 0 4px 4px;
-  box-shadow:0 4px 9px rgba(50,28,5,.2);
+  background:linear-gradient(to bottom,#CCBE7D,#9D7633);
+  box-shadow:0 5px 11px rgba(50,28,5,.28);
+  z-index:4;
 }
 /* Glass pane */
 .room-window-glass {
@@ -193,6 +253,7 @@ const DESK_CSS = `
   box-shadow:
     inset 0 0 0 1px rgba(100,78,42,.34),
     inset 0 0 40px rgba(255,220,170,.08);
+  z-index:1;
 }
 .room-window-glass::before {
   content:"";
@@ -203,6 +264,7 @@ const DESK_CSS = `
   width:1px;
   transform:translateX(-50%);
   background:linear-gradient(180deg,rgba(91,72,40,.14),rgba(91,72,40,.3),rgba(91,72,40,.16));
+  z-index:1;
 }
 .room-window-glass::after {
   content:"";
@@ -213,6 +275,7 @@ const DESK_CSS = `
   height:1px;
   transform:translateY(-50%);
   background:linear-gradient(90deg,rgba(91,72,40,.14),rgba(91,72,40,.3),rgba(91,72,40,.14));
+  z-index:1;
 }
 /* Soft light spill below windows */
 .room-window-glow {
@@ -410,6 +473,97 @@ const DESK_CSS = `
   border-radius:3px;
   background:rgba(112,82,41,.7);
 }
+
+.room-side-cabinet {
+  position:absolute;
+  right:4%;
+  bottom:20%;
+  width:min(19vw, 280px);
+  height:min(22vh, 200px);
+  border-radius:5px 5px 3px 3px;
+  padding:12px 10px 8px;
+  background:
+    linear-gradient(180deg,rgba(183,139,79,.22),transparent 22%),
+    linear-gradient(118deg,#8D6734 0%,#765228 48%,#5E401E 100%);
+  box-shadow:
+    0 12px 24px rgba(42,22,4,.22),
+    inset 0 1px 0 rgba(255,220,160,.12),
+    inset 0 -1px 0 rgba(40,18,4,.3);
+  pointer-events:none;
+  z-index:3;
+}
+.room-side-cabinet::before {
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:-7px;
+  height:9px;
+  border-radius:3px 3px 1px 1px;
+  background:linear-gradient(180deg,#A77A45,#7A5529);
+  box-shadow:0 4px 8px rgba(30,14,2,.2);
+}
+.cabinet-drawers {
+  position:relative;
+  display:grid;
+  grid-template-rows:repeat(3, 1fr);
+  gap:6px;
+  height:100%;
+}
+.cabinet-drawer {
+  position:relative;
+  border-radius:2px;
+  background:
+    linear-gradient(180deg,rgba(210,170,112,.14),transparent 34%),
+    linear-gradient(112deg,#7E5A2E 0%,#684620 52%,#55381A 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(240,205,150,.1),
+    inset 0 -1px 0 rgba(40,20,7,.36);
+}
+.cabinet-drawer::before {
+  content:"";
+  position:absolute;
+  left:10px;
+  right:10px;
+  top:0;
+  height:1px;
+  background:rgba(237,205,154,.14);
+}
+.cabinet-handle {
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  transform:translate(-50%, -50%);
+  background:radial-gradient(circle at 36% 30%,#E5CF95,#B7904D 58%,#8A642D 100%);
+  box-shadow:0 1px 3px rgba(0,0,0,.22);
+}
+.cabinet-legs {
+  position:absolute;
+  top:100%;
+  left:0;
+  right:0;
+  height:30px;
+  pointer-events:none;
+}
+.cabinet-leg {
+  position:absolute;
+  top:0;
+  width:10px;
+  height:28px;
+  border-radius:0 0 3px 3px;
+  background:linear-gradient(to right,#120804 0%,#2A1A0A 35%,#1E1008 65%,#0E0604 100%);
+  box-shadow:
+    2px 0 6px rgba(0,0,0,.5),
+    inset -1px 0 0 rgba(0,0,0,.34),
+    inset 1px 0 0 rgba(255,255,255,.04);
+}
+.cabinet-leg.l1 { left:12%; transform:rotate(-1deg); }
+.cabinet-leg.l2 { left:38%; transform:rotate(0.6deg); }
+.cabinet-leg.l3 { right:38%; transform:rotate(-0.6deg); }
+.cabinet-leg.l4 { right:12%; transform:rotate(1deg); }
 .wall-name {
   position:absolute; top:7%; left:50%;
   transform:translateX(-50%) translateY(0px);
@@ -417,7 +571,7 @@ const DESK_CSS = `
   font-size:clamp(22px,3vw,34px); color:rgba(90,60,20,.46);
   letter-spacing:6px; white-space:nowrap;
   pointer-events:none; user-select:none;
-  z-index:6;
+  z-index:7;
   will-change:transform,opacity;
 }
 .wall-name span { color:rgba(90,60,20,.68); }
@@ -621,6 +775,8 @@ const DESK_CSS = `
 }
 .big-paper::before { content:none; }
 .big-paper::after  { content:none; }
+/* Safety: hide any stale center clip markup from old bundles/cached UI */
+.big-paper-clip { display:none !important; }
 .big-paper-shine {
   position:absolute; top:0; left:0; right:0; height:2px;
   background:linear-gradient(to right,transparent,rgba(255,235,180,.5),transparent);
@@ -641,11 +797,6 @@ const DESK_CSS = `
   color:rgba(110,75,30,.22); margin-top:12px; transition:color .3s;
 }
 .big-paper:hover .big-paper-cta { color:rgba(160,115,50,.48); }
-.paper-corner {
-  position:absolute; bottom:0; right:0; width:0; height:0;
-  border-style:solid; border-width:0 0 26px 26px;
-  border-color:transparent transparent var(--paper-lo) transparent;
-}
 
 /* ── journal ── */
 .journal {
@@ -819,8 +970,8 @@ const DESK_CSS = `
 
 @media (max-width: 1200px) {
   .room-wall {
-    --window-width: 392px;
-    --window-height: 236px;
+    --window-width-base: 392px;
+    --window-height-ratio: 0.602;
     --window-gap: 42px;
   }
   .room-art {
@@ -832,13 +983,18 @@ const DESK_CSS = `
     right:2.5%;
     width:min(13vw,160px);
   }
+  .room-side-cabinet {
+    right:2%;
+    width:min(20vw, 186px);
+    height:min(21vh, 136px);
+  }
 }
 
 @media (max-width: 900px) {
   .room-wall {
     --window-top: 13%;
-    --window-width: min(43vw, 268px);
-    --window-height: min(29vh, 190px);
+    --window-width-base: min(43vw, 268px);
+    --window-height-ratio: 0.709;
     --window-gap: min(5vw, 26px);
   }
   .room-window-wrap { top:14%; }
@@ -846,23 +1002,31 @@ const DESK_CSS = `
   .room-shelf,
   .room-art,
   .room-wall-lamp { display:none; }
+  .room-side-cabinet {
+    right:2%;
+    width:min(24vw, 156px);
+    height:min(17vh, 112px);
+  }
+  .cabinet-legs { height:24px; }
+  .cabinet-leg { height:22px; width:8px; }
 }
 
 @media (max-width: 640px) {
   .room-wall {
     --window-top: 15%;
-    --window-width: min(39vw, 170px);
-    --window-height: min(22vh, 136px);
+    --window-width-base: min(39vw, 170px);
+    --window-height-ratio: 0.8;
     --window-gap: 14px;
   }
   .room-window-trim { padding:6px 6px 0 6px; }
   .room-window-trim::before { box-shadow:inset 0 0 0 6px #C4B878,inset 0 2px 6px rgba(0,0,0,.1); }
-  .room-window-sill { height:6px; margin:0 -3px; }
+  .room-window-sill-strip { height:8px; top:calc(var(--window-height) + 9px); }
   .room-window-glow { width:min(92vw, 420px); height:54px; }
   .room-art,
   .room-shelf,
   .room-wall-lamp,
-  .room-clock { display:none; }
+  .room-clock,
+  .room-side-cabinet { display:none; }
   .room-plant { transform:scale(.88); transform-origin:bottom right; }
   .room-rug-hint { width:92vw; height:14%; bottom:6%; opacity:.72; }
 }
@@ -1147,12 +1311,20 @@ export default function DeskSection({
   }
 
   const displayName = user?.name || null;
+  const isSafariBrowser =
+    typeof navigator !== "undefined" &&
+    /safari/i.test(navigator.userAgent) &&
+    !/chrome|chromium|android/i.test(navigator.userAgent);
 
   return (
     <>
       <style>{DESK_CSS}</style>
 
-      <section id={sectionId} className="scene-outer" ref={sectionRef}>
+      <section
+        id={sectionId}
+        className={`scene-outer ${isSafariBrowser ? "is-safari-browser" : ""}`.trim()}
+        ref={sectionRef}
+      >
         <div className="scene-sticky">
           <div className="room-wall" aria-hidden="true">
             <div className="room-wall-piece room-wall-top" />
@@ -1171,16 +1343,23 @@ export default function DeskSection({
             <div className="room-window-glow" />
             <div className="room-window-panel">
               <div className="room-window-trim">
-                <div className="room-window-glass" />
+                <div className="room-window-glass">
+                  <div className="room-window-curtain">
+                    <div className="room-window-curtain-center" />
+                  </div>
+                </div>
               </div>
-              <div className="room-window-sill" />
             </div>
             <div className="room-window-panel">
               <div className="room-window-trim">
-                <div className="room-window-glass" />
+                <div className="room-window-glass">
+                  <div className="room-window-curtain">
+                    <div className="room-window-curtain-center" />
+                  </div>
+                </div>
               </div>
-              <div className="room-window-sill" />
             </div>
+            <div className="room-window-sill-strip" />
           </div>
           <div className="room-art">
             <div className="room-art-canvas" />
@@ -1201,6 +1380,25 @@ export default function DeskSection({
           </div>
           <div className="room-clock" />
           <div className="room-wall-lamp" />
+          <div className="room-side-cabinet">
+            <div className="cabinet-drawers">
+              <div className="cabinet-drawer">
+                <div className="cabinet-handle" />
+              </div>
+              <div className="cabinet-drawer">
+                <div className="cabinet-handle" />
+              </div>
+              <div className="cabinet-drawer">
+                <div className="cabinet-handle" />
+              </div>
+            </div>
+            <div className="cabinet-legs">
+              <div className="cabinet-leg l1" />
+              <div className="cabinet-leg l2" />
+              <div className="cabinet-leg l3" />
+              <div className="cabinet-leg l4" />
+            </div>
+          </div>
 
           <div className="scene-texture" />
           <div className="scene-vignette" />
@@ -1279,7 +1477,6 @@ export default function DeskSection({
                     <div className="big-paper-title">your canvas awaits</div>
                     <div className="big-paper-cta">click to begin</div>
                   </div>
-                  <div className="paper-corner" />
                 </div>
 
                 {/* Journal */}

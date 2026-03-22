@@ -44,6 +44,7 @@ const defaultSession = {
   // Pre-session intake
   mood: null,
   moodColor: null,
+  interactionMode: "voice", // 'voice' | 'text'
   guided: null,
   intakeText: "", // "what's on your mind?" optional text
   guideTheme: null, // guided mode: 'emotion-anchored' | 'body-based' | 'narrative'

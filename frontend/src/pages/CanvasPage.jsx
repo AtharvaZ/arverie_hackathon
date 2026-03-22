@@ -34,10 +34,12 @@ function AIPanel({
   isConnected,
   isSpeaking,
   onSendMessage,
+  interactionMode,
 }) {
   const messagesEndRef = useRef(null);
   const [inputValue, setInputValue] = useState("");
   const [sending, setSending] = useState(false);
+  const isVoiceMode = interactionMode !== "text";
 
   useEffect(() => {
     if (open) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -66,8 +68,8 @@ function AIPanel({
           left: 0,
           top: "50%",
           transform: "translateY(-50%)",
-          width: "28px",
-          height: "60px",
+          width: "32px",
+          height: "68px",
           background: "rgba(245,235,208,0.95)",
           border: "1px solid rgba(200,168,40,0.4)",
           borderRight: "none",
@@ -77,7 +79,7 @@ function AIPanel({
           alignItems: "center",
           justifyContent: "center",
           zIndex: 20,
-          marginLeft: "-28px",
+          marginLeft: "-32px",
         }}
       >
         <svg
@@ -102,7 +104,7 @@ function AIPanel({
 
       {/* Panel body */}
       <motion.div
-        animate={{ width: open ? 300 : 0 }}
+        animate={{ width: open ? 380 : 0 }}
         transition={{ type: "spring", damping: 22, stiffness: 180 }}
         style={{
           height: "100%",
@@ -127,7 +129,7 @@ function AIPanel({
                 flexDirection: "column",
                 padding: "14px",
                 overflow: "hidden",
-                minWidth: "300px",
+                minWidth: "380px",
               }}
             >
               <div
@@ -159,7 +161,7 @@ function AIPanel({
                       borderRadius: "50%",
                       background: isSpeaking
                         ? "#c8a040"
-                        : isConnected
+                        : isVoiceMode && isConnected
                           ? "#5a8a5a"
                           : "#888",
                       transition: "background 0.3s",
@@ -174,11 +176,13 @@ function AIPanel({
                       color: "rgba(80,55,30,0.5)",
                     }}
                   >
-                    {isSpeaking
-                      ? "speaking"
-                      : isConnected
-                        ? "listening"
-                        : "offline"}
+                    {isVoiceMode
+                      ? isSpeaking
+                        ? "speaking"
+                        : isConnected
+                          ? "listening"
+                          : "offline"
+                      : "text mode"}
                   </span>
                 </div>
               </div>
@@ -200,7 +204,7 @@ function AIPanel({
                     style={{
                       fontFamily: "IM Fell English, serif",
                       fontStyle: "italic",
-                      fontSize: "16px",
+                      fontSize: "18px",
                       lineHeight: 1.75,
                       color: "rgba(80,55,30,0.45)",
                       textAlign: "center",
@@ -233,7 +237,7 @@ function AIPanel({
                         style={{
                           fontFamily: "IM Fell English, serif",
                           fontStyle: "italic",
-                          fontSize: "15px",
+                          fontSize: "17px",
                           lineHeight: 1.6,
                           color:
                             msg.role === "assistant"
@@ -247,7 +251,7 @@ function AIPanel({
                         <p
                           style={{
                             fontFamily: "Cinzel, serif",
-                            fontSize: "9px",
+                            fontSize: "10px",
                             color: "rgba(80,55,30,0.3)",
                             marginTop: "4px",
                           }}
@@ -261,63 +265,65 @@ function AIPanel({
                 <div ref={messagesEndRef} />
               </div>
 
-              <form
-                onSubmit={handleSubmit}
-                style={{
-                  display: "flex",
-                  gap: "6px",
-                  paddingTop: "10px",
-                  borderTop: "1px solid rgba(200,168,40,0.2)",
-                }}
-              >
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="Write to Arverie..."
-                  disabled={sending}
+              {!isVoiceMode && (
+                <form
+                  onSubmit={handleSubmit}
                   style={{
-                    flex: 1,
-                    padding: "7px 10px",
-                    fontFamily: "IM Fell English, serif",
-                    fontSize: "13px",
-                    color: "rgba(80,55,30,0.85)",
-                    background: "rgba(255,250,235,0.8)",
-                    border: "1px solid rgba(200,168,40,0.35)",
-                    borderRadius: "6px",
-                    outline: "none",
-                    opacity: sending ? 0.6 : 1,
-                  }}
-                />
-                <button
-                  type="submit"
-                  disabled={!inputValue.trim() || sending}
-                  style={{
-                    width: "32px",
-                    height: "32px",
-                    flexShrink: 0,
-                    background: "rgba(200,160,40,0.15)",
-                    border: "1px solid rgba(200,168,40,0.4)",
-                    borderRadius: "6px",
-                    cursor: "pointer",
                     display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    opacity: inputValue.trim() && !sending ? 1 : 0.45,
-                    transition: "opacity 0.15s",
+                    gap: "8px",
+                    paddingTop: "12px",
+                    borderTop: "1px solid rgba(200,168,40,0.2)",
                   }}
                 >
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                    <path
-                      d="M1 6h10M7 2l4 4-4 4"
-                      stroke="#c8a040"
-                      strokeWidth="1.4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-              </form>
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    placeholder="Write to Arverie..."
+                    disabled={sending}
+                    style={{
+                      flex: 1,
+                      padding: "9px 12px",
+                      fontFamily: "IM Fell English, serif",
+                      fontSize: "15px",
+                      color: "rgba(80,55,30,0.85)",
+                      background: "rgba(255,250,235,0.8)",
+                      border: "1px solid rgba(200,168,40,0.35)",
+                      borderRadius: "7px",
+                      outline: "none",
+                      opacity: sending ? 0.6 : 1,
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!inputValue.trim() || sending}
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      flexShrink: 0,
+                      background: "rgba(200,160,40,0.15)",
+                      border: "1px solid rgba(200,168,40,0.4)",
+                      borderRadius: "7px",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: inputValue.trim() && !sending ? 1 : 0.45,
+                      transition: "opacity 0.15s",
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path
+                        d="M1 6h10M7 2l4 4-4 4"
+                        stroke="#c8a040"
+                        strokeWidth="1.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </form>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -345,6 +351,7 @@ export default function CanvasPage() {
   const [size, setSize] = useState(20);
   const [opacity, setOpacity] = useState(0.85);
   const [aiOpen, setAiOpen] = useState(false);
+  const isVoiceMode = session.interactionMode !== "text";
 
   // Dialogue messages shown in AIPanel
   const [messages, setMessages] = useState(() => {
@@ -465,7 +472,7 @@ export default function CanvasPage() {
 
   // Connect Hume on mount if we have a sessionId
   useEffect(() => {
-    if (session.sessionId) {
+    if (isVoiceMode && session.sessionId) {
       api
         .getWsToken(session.sessionId)
         .then(({ ws_token }) => connectHume(session.sessionId, ws_token))
@@ -484,7 +491,7 @@ export default function CanvasPage() {
       disconnectHume();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.sessionId]);
+  }, [isVoiceMode, session.sessionId]);
 
   // ── Canvas snapshot polling ──
   useEffect(() => {
@@ -797,6 +804,7 @@ export default function CanvasPage() {
           isConnected={isConnected}
           isSpeaking={isSpeaking}
           onSendMessage={handleSendMessage}
+          interactionMode={session.interactionMode}
         />
       </div>
     </div>

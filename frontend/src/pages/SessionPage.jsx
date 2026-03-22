@@ -45,6 +45,10 @@ export default function SessionPage() {
   const navigate = useNavigate();
   const { session, setSession } = useApp();
 
+  const [assistantMode, setAssistantMode] = useState(
+    session.interactionMode || null,
+  );
+
   const [moodSelected, setMoodSelected] = useState("");
   const [moodCustom, setMoodCustom] = useState("");
   const mood = moodSelected || moodCustom.trim();
@@ -62,9 +66,16 @@ export default function SessionPage() {
   const [stage, setStage] = useState("setup");
   const [drawingPrompt, setDrawingPrompt] = useState(null);
 
+  const modeChosen = assistantMode === "voice" || assistantMode === "text";
   const isGuided = mode === "guided";
   const guidedReady = isGuided && !!guideTheme;
-  const isReady = !!(mood && moodColor && mode && (!isGuided || guidedReady));
+  const isReady = !!(
+    modeChosen &&
+    mood &&
+    moodColor &&
+    mode &&
+    (!isGuided || guidedReady)
+  );
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -99,6 +110,7 @@ export default function SessionPage() {
         sessionId: session_id,
         mood,
         moodColor,
+        interactionMode: assistantMode,
         guided: isGuided,
         guideTheme: isGuided ? guideTheme : null,
         intakeText: transcript,
@@ -293,8 +305,85 @@ export default function SessionPage() {
           <OrnamentalDivider />
         </div>
 
+        {/* Interaction mode chooser (always first) */}
+        <div className="w-full mb-6">
+          <div className="card p-8 md:col-span-2">
+            <h2
+              className="text-center mb-8"
+              style={{
+                fontFamily: "Cinzel, serif",
+                fontSize: "12px",
+                letterSpacing: "0.15em",
+                color: "var(--text-muted)",
+              }}
+            >
+              HOW WOULD YOU LIKE TO TALK TO ARVERIE?
+            </h2>
+            <div className="flex flex-col sm:flex-row gap-6 justify-center max-w-2xl mx-auto">
+              {[
+                {
+                  key: "voice",
+                  label: "Voice AI",
+                  sub: "real-time voice companion",
+                },
+                {
+                  key: "text",
+                  label: "Text Only",
+                  sub: "typed chat with the same check-ins",
+                },
+              ].map((opt) => (
+                <div
+                  key={opt.key}
+                  onClick={() => setAssistantMode(opt.key)}
+                  style={{
+                    flex: 1,
+                    padding: "28px 24px",
+                    borderRadius: "var(--radius-md)",
+                    border: `${assistantMode === opt.key ? 2 : 1}px solid ${assistantMode === opt.key ? "var(--gold)" : "var(--border)"}`,
+                    background:
+                      assistantMode === opt.key
+                        ? "var(--gold-wash)"
+                        : "transparent",
+                    cursor: "pointer",
+                    textAlign: "center",
+                    transition: "all var(--transition)",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontFamily: "Cinzel, serif",
+                      fontSize: "15px",
+                      color: "var(--text)",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    {opt.label}
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "IM Fell English, serif",
+                      fontStyle: "italic",
+                      fontSize: "16px",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    {opt.sub}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Bento grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-6">
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-6"
+          style={{
+            opacity: modeChosen ? 1 : 0.45,
+            pointerEvents: modeChosen ? "auto" : "none",
+            transition: "opacity 0.24s ease",
+          }}
+        >
           {/* Box 1: Mood */}
           <div
             className="card p-8 flex flex-col justify-between"
@@ -677,7 +766,9 @@ export default function SessionPage() {
               }}
             >
               {!mode
-                ? "Please select a word, a color, and a mode to begin."
+                ? !modeChosen
+                  ? "Please choose Voice AI or Text Only first."
+                  : "Please select a word, a color, and a mode to begin."
                 : isGuided && !guideTheme
                   ? "Please choose a direction for your guided session."
                   : "Please select a word and a color to begin."}
