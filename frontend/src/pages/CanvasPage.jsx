@@ -353,6 +353,8 @@ export default function CanvasPage() {
   const [color, setColor] = useState("#1d1d1d");
   const [size, setSize] = useState(20);
   const [opacity, setOpacity] = useState(0.85);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const isVoiceMode = session.interactionMode !== "text";
 
@@ -643,6 +645,74 @@ export default function CanvasPage() {
     [setSession],
   );
 
+  const handleHistoryChange = useCallback(
+    ({ canUndo: nextUndo, canRedo: nextRedo }) => {
+      setCanUndo(Boolean(nextUndo));
+      setCanRedo(Boolean(nextRedo));
+    },
+    [],
+  );
+
+  const handleHistoryEvent = useCallback(
+    ({ action, meta, stroke, erase }) => {
+      if (action === "undo") {
+        if (stroke) {
+          const arr = behaviorData.current.strokes;
+          if (arr.length > 0) {
+            let idx = -1;
+            for (let i = arr.length - 1; i >= 0; i -= 1) {
+              if (arr[i].opId === meta?.opId) {
+                idx = i;
+                break;
+              }
+            }
+            if (idx >= 0) arr.splice(idx, 1);
+            else arr.pop();
+          }
+        }
+        if (erase) {
+          const arr = behaviorData.current.erasures;
+          if (arr.length > 0) {
+            let idx = -1;
+            for (let i = arr.length - 1; i >= 0; i -= 1) {
+              if (arr[i].opId === meta?.opId) {
+                idx = i;
+                break;
+              }
+            }
+            if (idx >= 0) arr.splice(idx, 1);
+            else arr.pop();
+          }
+          setSession((s) => ({
+            ...s,
+            erasureCount: Math.max(0, s.erasureCount - 1),
+          }));
+        }
+      }
+
+      if (action === "redo") {
+        if (stroke) {
+          behaviorData.current.strokes.push(stroke);
+        }
+        if (erase) {
+          behaviorData.current.erasures.push(erase);
+          setSession((s) => ({ ...s, erasureCount: s.erasureCount + 1 }));
+        }
+      }
+    },
+    [setSession],
+  );
+
+  const handleUndo = useCallback(() => {
+    if (!canvasRef.current?.undo) return;
+    canvasRef.current.undo();
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    if (!canvasRef.current?.redo) return;
+    canvasRef.current.redo();
+  }, []);
+
   // ── Finish session ──
   async function handleFinish() {
     if (finishing) return;
@@ -800,6 +870,8 @@ export default function CanvasPage() {
               opacity={opacity}
               onStroke={handleStroke}
               onErase={handleErase}
+              onHistoryChange={handleHistoryChange}
+              onHistoryEvent={handleHistoryEvent}
             />
           </div>
 
@@ -813,6 +885,10 @@ export default function CanvasPage() {
             onSizeChange={setSize}
             opacity={opacity}
             onOpacityChange={setOpacity}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={canUndo}
+            canRedo={canRedo}
           />
         </div>
 

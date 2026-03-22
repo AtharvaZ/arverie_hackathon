@@ -105,7 +105,16 @@ function sampleStrokePoints(points, maxSamples = 12) {
 }
 
 const DrawingCanvas = forwardRef(function DrawingCanvas(
-  { brush, color, size, opacity, onStroke, onErase },
+  {
+    brush,
+    color,
+    size,
+    opacity,
+    onStroke,
+    onErase,
+    onHistoryChange,
+    onHistoryEvent,
+  },
   ref,
 ) {
   const canvasRef = useRef(null); // permanent strokes
@@ -117,6 +126,17 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
   const strokePoints = useRef([]);
   const prevMidPoint = useRef(null);
   const dragStartPoint = useRef(null);
+  const strokeMutated = useRef(false);
+  const strokeBeforeImage = useRef(null);
+  const historyStack = useRef([]);
+  const redoStack = useRef([]);
+
+  const notifyHistoryChange = useCallback(() => {
+    onHistoryChange?.({
+      canUndo: historyStack.current.length > 0,
+      canRedo: redoStack.current.length > 0,
+    });
+  }, [onHistoryChange]);
 
   // Expose imperative API for getDataURL (composited with parchment bg)
   useImperativeHandle(
@@ -140,8 +160,38 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
         }
         return tmp.toDataURL("image/png");
       },
+      undo() {
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext("2d");
+        if (!canvas || !ctx) return false;
+        const op = historyStack.current.pop();
+        if (!op) return false;
+        ctx.putImageData(op.before, 0, 0);
+        redoStack.current.push(op);
+        onHistoryEvent?.({ action: "undo", ...op.telemetry });
+        notifyHistoryChange();
+        return true;
+      },
+      redo() {
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext("2d");
+        if (!canvas || !ctx) return false;
+        const op = redoStack.current.pop();
+        if (!op) return false;
+        ctx.putImageData(op.after, 0, 0);
+        historyStack.current.push(op);
+        onHistoryEvent?.({ action: "redo", ...op.telemetry });
+        notifyHistoryChange();
+        return true;
+      },
+      canUndo() {
+        return historyStack.current.length > 0;
+      },
+      canRedo() {
+        return redoStack.current.length > 0;
+      },
     }),
-    [opacity],
+    [opacity, notifyHistoryChange, onHistoryEvent],
   );
 
   // Set canvas buffer size once on mount — never reassign width/height (clears canvas).
@@ -173,6 +223,11 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
       e.preventDefault();
       canvasRef.current.setPointerCapture(e.pointerId);
       const pos = getPos(e);
+      window.dispatchEvent(
+        new CustomEvent("arverie:cursor-move", {
+          detail: { x: e.clientX, y: e.clientY },
+        }),
+      );
       isDrawing.current = true;
       lastPoint.current = pos;
       lastTime.current = performance.now();
@@ -180,6 +235,16 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
       strokePoints.current = [pos];
       dragStartPoint.current = pos;
       prevMidPoint.current = null;
+      strokeMutated.current = false;
+      const mainCtx = canvasRef.current?.getContext("2d");
+      if (mainCtx && canvasRef.current) {
+        strokeBeforeImage.current = mainCtx.getImageData(
+          0,
+          0,
+          canvasRef.current.width,
+          canvasRef.current.height,
+        );
+      }
       if (PREVIEW_TOOLS.has(brush) && liveCanvasRef.current) {
         const liveCtx = liveCanvasRef.current.getContext("2d");
         liveCtx.clearRect(
@@ -200,9 +265,16 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
     (e) => {
       if (!isDrawing.current) return;
       e.preventDefault();
+      window.dispatchEvent(
+        new CustomEvent("arverie:cursor-move", {
+          detail: { x: e.clientX, y: e.clientY },
+        }),
+      );
       const target = LIVE_BRUSHES.has(brush)
         ? liveCanvasRef.current
-        : canvasRef.current;
+        : PREVIEW_TOOLS.has(brush)
+          ? liveCanvasRef.current
+          : canvasRef.current;
       const ctx = target?.getContext("2d");
       if (!ctx) return;
 
@@ -225,6 +297,7 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
           liveCanvasRef.current.height,
         );
         drawShape(ctx, brush, dragStartPoint.current, pos, color, size);
+        strokeMutated.current = true;
         strokePoints.current = [dragStartPoint.current, pos];
         lastPoint.current = pos;
         lastTime.current = now;
@@ -237,6 +310,7 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
       switch (brush) {
         case "watercolor":
           drawWatercolor(ctx, pos.x, pos.y, color, size, opacity);
+          strokeMutated.current = true;
           break;
         case "pencil":
           // opacity=1 on live canvas — idempotent overlapping caps → no circles
@@ -252,6 +326,7 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
             size,
             1,
           );
+          strokeMutated.current = true;
           break;
         case "ink":
           drawInk(
@@ -267,6 +342,7 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
             1,
             speed,
           );
+          strokeMutated.current = true;
           break;
         case "smudge":
         case "blur": {
@@ -278,8 +354,12 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
             const iy = prev.y + (pos.y - prev.y) * t;
             const ipx = prev.x + (pos.x - prev.x) * tp;
             const ipy = prev.y + (pos.y - prev.y) * tp;
-            if (brush === "smudge") drawSmudge(ctx, ix, iy, ipx, ipy, size);
-            else drawBlur(ctx, ix, iy, size);
+            if (brush === "smudge") {
+              if (drawSmudge(ctx, ix, iy, ipx, ipy, size))
+                strokeMutated.current = true;
+            } else if (drawBlur(ctx, ix, iy, size)) {
+              strokeMutated.current = true;
+            }
           }
           break;
         }
@@ -291,7 +371,7 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
             const iy = prev.y + (pos.y - prev.y) * t;
             drawEraser(ctx, ix, iy, size);
           }
-          onErase?.({ position: pos, timestamp: Date.now(), size });
+          strokeMutated.current = true;
           break;
         }
         default:
@@ -309,6 +389,8 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
   const handlePointerUp = useCallback(() => {
     if (!isDrawing.current) return;
     isDrawing.current = false;
+
+    const opId = strokeStart.current || Date.now();
 
     if (
       PREVIEW_TOOLS.has(brush) &&
@@ -329,9 +411,12 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
         liveCanvasRef.current.height,
       );
       liveCanvasRef.current.style.opacity = 1;
+      strokeMutated.current = true;
     }
 
     const pts = strokePoints.current;
+    let strokePayload = null;
+    let erasePayload = null;
     if (pts.length > 1) {
       const strokeEnd = Date.now();
       const durationMs = Math.max(
@@ -354,8 +439,9 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
         x: xs.reduce((a, b) => a + b, 0) / xs.length,
         y: ys.reduce((a, b) => a + b, 0) / ys.length,
       };
-      onStroke?.({
+      strokePayload = {
         timestamp: strokeStart.current,
+        opId,
         brush,
         color,
         opacity,
@@ -368,13 +454,66 @@ const DrawingCanvas = forwardRef(function DrawingCanvas(
         pathLength,
         avgSpeedPxPerSec: Number(((pathLength / durationMs) * 1000).toFixed(2)),
         pointSamples: sampleStrokePoints(pts),
+      };
+      onStroke?.(strokePayload);
+
+      if (brush === "eraser") {
+        erasePayload = {
+          opId,
+          position: pts[pts.length - 1],
+          timestamp: Date.now(),
+          size,
+        };
+        onErase?.(erasePayload);
+      }
+    }
+
+    if (
+      strokeMutated.current &&
+      strokeBeforeImage.current &&
+      canvasRef.current
+    ) {
+      const mainCtx = canvasRef.current.getContext("2d");
+      const afterImage = mainCtx.getImageData(
+        0,
+        0,
+        canvasRef.current.width,
+        canvasRef.current.height,
+      );
+      const telemetry = {
+        meta: {
+          opId,
+          kind: brush === "eraser" ? "erase" : "stroke",
+          brush,
+        },
+        stroke: strokePayload,
+        erase: erasePayload,
+      };
+      historyStack.current.push({
+        before: strokeBeforeImage.current,
+        after: afterImage,
+        telemetry,
       });
+      redoStack.current = [];
+      onHistoryEvent?.({ action: "push", ...telemetry });
+      notifyHistoryChange();
     }
 
     lastPoint.current = null;
     dragStartPoint.current = null;
     strokePoints.current = [];
-  }, [brush, color, opacity, size, onStroke]);
+    strokeBeforeImage.current = null;
+    strokeMutated.current = false;
+  }, [
+    brush,
+    color,
+    opacity,
+    size,
+    onStroke,
+    onErase,
+    onHistoryEvent,
+    notifyHistoryChange,
+  ]);
 
   return (
     <>

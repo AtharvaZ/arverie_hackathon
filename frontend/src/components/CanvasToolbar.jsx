@@ -196,6 +196,12 @@ function LabeledSlider({
   display,
   fullWidth = false,
 }) {
+  const ratio = Math.max(
+    0,
+    Math.min(1, (value - min) / Math.max(max - min, 1)),
+  );
+  const percent = Math.round(ratio * 100);
+
   return (
     <div
       style={{
@@ -228,6 +234,7 @@ function LabeledSlider({
           style={{
             width: fullWidth ? "100%" : "138px",
             flex: fullWidth ? 1 : "none",
+            background: `linear-gradient(to right, #c8a828 0%, #c8a828 ${percent}%, rgba(160,130,60,0.25) ${percent}%, rgba(160,130,60,0.25) 100%)`,
           }}
           aria-label={label}
         />
@@ -258,6 +265,10 @@ export default function CanvasToolbar({
   onSizeChange,
   opacity,
   onOpacityChange,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerPos, setPickerPos] = useState({ bottom: 0, left: 0 });
@@ -266,7 +277,14 @@ export default function CanvasToolbar({
   );
   const [mobilePanel, setMobilePanel] = useState("paint");
   const [expandedAdjust, setExpandedAdjust] = useState("size");
+  const [toolbarWidth, setToolbarWidth] = useState(0);
+  const [shapeSelectValue, setShapeSelectValue] = useState("");
   const swatchRef = useRef(null);
+  const toolbarRef = useRef(null);
+
+  const shapeToolsSet = useRef(new Set(SHAPE_TOOLS.map((tool) => tool.id)));
+  const useShapeDropdown =
+    !isCompact && toolbarWidth > 0 && toolbarWidth < 1180;
 
   useEffect(() => {
     const onResize = () => setIsCompact(window.innerWidth <= 980);
@@ -281,6 +299,29 @@ export default function CanvasToolbar({
       setExpandedAdjust("size");
     }
   }, [isCompact]);
+
+  useEffect(() => {
+    if (!toolbarRef.current) return;
+    const updateWidth = () => {
+      if (!toolbarRef.current) return;
+      setToolbarWidth(toolbarRef.current.clientWidth || 0);
+    };
+    updateWidth();
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(toolbarRef.current);
+    window.addEventListener("resize", updateWidth);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateWidth);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (shapeToolsSet.current.has(brush)) {
+      setShapeSelectValue(brush);
+    }
+  }, [brush]);
 
   const handleSwatchClick = () => {
     if (!pickerOpen && swatchRef.current) {
@@ -376,7 +417,7 @@ export default function CanvasToolbar({
           -webkit-appearance: none;
           appearance: none;
           height: 3px;
-          background: linear-gradient(to right, #c8a828 0%, #c8a828 ${((size - 1) / 99) * 100}%, rgba(160,130,60,0.25) ${((size - 1) / 99) * 100}%, rgba(160,130,60,0.25) 100%);
+          background: rgba(160,130,60,0.25);
           border-radius: 2px;
           outline: none;
           cursor: pointer;
@@ -397,6 +438,46 @@ export default function CanvasToolbar({
           border-radius: 50%;
           background: #c8a828;
           border: 2px solid rgba(250,242,222,0.9);
+          cursor: pointer;
+        }
+
+        .arverie-action-button {
+          width: 38px;
+          height: 38px;
+          border-radius: 10px;
+          border: 1px solid rgba(160,130,60,0.3);
+          background: rgba(255,250,235,0.78);
+          color: #6b5533;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .arverie-action-button:hover:not(:disabled) {
+          transform: translateY(-1px);
+          border-color: rgba(200,168,40,0.48);
+          box-shadow: 0 6px 12px rgba(70,45,16,0.12);
+        }
+
+        .arverie-action-button:disabled {
+          opacity: 0.42;
+          cursor: default;
+        }
+
+        .arverie-shape-select {
+          height: 44px;
+          min-width: 148px;
+          border-radius: 10px;
+          border: 1px solid rgba(160,130,60,0.3);
+          background: rgba(255,250,235,0.8);
+          color: #6b5533;
+          font-family: Cinzel, serif;
+          font-size: 11px;
+          letter-spacing: 0.1em;
+          padding: 0 12px;
+          outline: none;
           cursor: pointer;
         }
 
@@ -472,6 +553,7 @@ export default function CanvasToolbar({
 
       {/* Toolbar strip */}
       <div
+        ref={toolbarRef}
         className="arverie-toolbar"
         style={{
           position: "relative",
@@ -479,13 +561,14 @@ export default function CanvasToolbar({
           height: "110px",
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
+          justifyContent: useShapeDropdown ? "flex-start" : "center",
           gap: "10px",
           background: "rgba(245, 235, 208, 0.97)",
           borderTop: "1px solid rgba(200,168,40,0.35)",
           boxShadow: "0 -8px 30px rgba(160,130,60,0.12)",
           padding: "0 20px",
           userSelect: "none",
+          overflowX: isCompact ? "hidden" : "auto",
         }}
       >
         {!isCompact ? (
@@ -564,40 +647,63 @@ export default function CanvasToolbar({
               }}
             />
 
-            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-              {SHAPE_TOOLS.map(({ id, label, Icon }) => {
-                const active = brush === id;
-                return (
-                  <button
-                    key={id}
-                    onClick={() => onBrushChange(id)}
-                    className="arverie-tool-button"
-                    aria-label={label}
-                    style={{
-                      background: active
-                        ? "rgba(200,168,40,0.12)"
-                        : "transparent",
-                      border: active
-                        ? "1px solid rgba(200,168,40,0.45)"
-                        : "1px solid transparent",
-                    }}
-                  >
-                    <Icon active={active} />
-                    <span
+            {useShapeDropdown ? (
+              <select
+                className="arverie-shape-select"
+                aria-label="Select shape tool"
+                value={shapeSelectValue}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  if (!next) return;
+                  setShapeSelectValue(next);
+                  onBrushChange(next);
+                }}
+              >
+                <option value="">SHAPES ▾</option>
+                {SHAPE_TOOLS.map(({ id, label }) => (
+                  <option key={id} value={id}>
+                    {label.toUpperCase()}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div
+                style={{ display: "flex", gap: "6px", alignItems: "center" }}
+              >
+                {SHAPE_TOOLS.map(({ id, label, Icon }) => {
+                  const active = brush === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => onBrushChange(id)}
+                      className="arverie-tool-button"
+                      aria-label={label}
                       style={{
-                        fontFamily: "Cinzel, serif",
-                        fontSize: "9.5px",
-                        letterSpacing: "0.1em",
-                        color: active ? "#b08c1a" : "#6b5533",
-                        whiteSpace: "nowrap",
+                        background: active
+                          ? "rgba(200,168,40,0.12)"
+                          : "transparent",
+                        border: active
+                          ? "1px solid rgba(200,168,40,0.45)"
+                          : "1px solid transparent",
                       }}
                     >
-                      {label.toUpperCase()}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                      <Icon active={active} />
+                      <span
+                        style={{
+                          fontFamily: "Cinzel, serif",
+                          fontSize: "9.5px",
+                          letterSpacing: "0.1em",
+                          color: active ? "#b08c1a" : "#6b5533",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {label.toUpperCase()}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <div
               style={{
@@ -629,6 +735,66 @@ export default function CanvasToolbar({
                 onChange={(v) => onOpacityChange(v / 100)}
                 display={(v) => `${v}%`}
               />
+            </div>
+
+            <div
+              style={{
+                width: "1px",
+                height: "56px",
+                background: "rgba(160,130,60,0.2)",
+                margin: "0 2px",
+              }}
+            />
+
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <button
+                type="button"
+                className="arverie-action-button"
+                aria-label="Undo last stroke"
+                title="Undo last stroke"
+                disabled={!canUndo}
+                onClick={onUndo}
+              >
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M6 4 L2.5 7.5 L6 11"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M3 7.5 H9.2 C11.9 7.5 14 9.2 14 11.8"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="arverie-action-button"
+                aria-label="Redo last stroke"
+                title="Redo last stroke"
+                disabled={!canRedo}
+                onClick={onRedo}
+              >
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M10 4 L13.5 7.5 L10 11"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M13 7.5 H6.8 C4.1 7.5 2 9.2 2 11.8"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
             </div>
           </>
         ) : (
@@ -676,6 +842,55 @@ export default function CanvasToolbar({
                   </button>
                 ))}
               </div>
+
+              <button
+                type="button"
+                className="arverie-action-button"
+                aria-label="Undo last stroke"
+                title="Undo last stroke"
+                disabled={!canUndo}
+                onClick={onUndo}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M6 4 L2.5 7.5 L6 11"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M3 7.5 H9.2 C11.9 7.5 14 9.2 14 11.8"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="arverie-action-button"
+                aria-label="Redo last stroke"
+                title="Redo last stroke"
+                disabled={!canRedo}
+                onClick={onRedo}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M10 4 L13.5 7.5 L10 11"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M13 7.5 H6.8 C4.1 7.5 2 9.2 2 11.8"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
             </div>
 
             {mobilePanel !== "adjust" ? (
