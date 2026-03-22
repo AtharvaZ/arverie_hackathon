@@ -20,12 +20,15 @@ from models import (
     SessionEndResponse,
     SessionCompleteRequest,
     SessionCompleteResponse,
+    UserMessageRequest,
+    UserMessageResponse,
     SessionListResponse,
     SessionSummary,
 )
 from canvas_processor import CanvasEventProcessor
 from claude_calls import (
     call_intake,
+    call_user_message,
     call_trigger_response,
     call_vision_description,
     call_reflection_questions,
@@ -139,6 +142,28 @@ async def session_intake(body: IntakeRequest) -> IntakeResponse:
         return result
     except Exception as e:
         logger.error(f"Intake failed for session {body.session_id}: {e}")
+        return JSONResponse(status_code=500, content={"error": "Something went wrong"})
+
+
+@app.post("/session/message", response_model=UserMessageResponse)
+async def session_message(body: UserMessageRequest) -> UserMessageResponse:
+    try:
+        intake = session_intake_data.get(body.session_id, {})
+        themes = intake.get("themes", [])
+        loop = asyncio.get_event_loop()
+        response_text = await loop.run_in_executor(
+            None,
+            partial(
+                call_user_message,
+                message=body.message,
+                themes=themes,
+                dialogue_history=body.dialogue_history if isinstance(body.dialogue_history, list) else [],
+            ),
+        )
+        logger.info(f"User message handled for session {body.session_id}")
+        return UserMessageResponse(response=response_text)
+    except Exception as e:
+        logger.error(f"Session message failed for {body.session_id}: {e}")
         return JSONResponse(status_code=500, content={"error": "Something went wrong"})
 
 

@@ -23,21 +23,27 @@ function AIPanel({
   messages,
   isConnected,
   isSpeaking,
-  onAddTranscript,
+  onSendMessage,
 }) {
   const messagesEndRef = useRef(null);
   const [inputValue, setInputValue] = useState("");
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (open) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const text = inputValue.trim();
-    if (!text) return;
-    onAddTranscript?.(text);
+    if (!text || sending) return;
     setInputValue("");
+    setSending(true);
+    try {
+      await onSendMessage?.(text);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -258,7 +264,8 @@ function AIPanel({
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="Add a note to transcript..."
+                  placeholder="Write to Arverie..."
+                  disabled={sending}
                   style={{
                     flex: 1,
                     padding: "7px 10px",
@@ -269,11 +276,12 @@ function AIPanel({
                     border: "1px solid rgba(200,168,40,0.35)",
                     borderRadius: "6px",
                     outline: "none",
+                    opacity: sending ? 0.6 : 1,
                   }}
                 />
                 <button
                   type="submit"
-                  disabled={!inputValue.trim()}
+                  disabled={!inputValue.trim() || sending}
                   style={{
                     width: "32px",
                     height: "32px",
@@ -285,7 +293,7 @@ function AIPanel({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    opacity: inputValue.trim() ? 1 : 0.45,
+                    opacity: inputValue.trim() && !sending ? 1 : 0.45,
                     transition: "opacity 0.15s",
                   }}
                 >
@@ -377,8 +385,8 @@ export default function CanvasPage() {
     setMessages((prev) => [...prev, msg]);
   }, []);
 
-  const handleAddTranscript = useCallback(
-    (text) => {
+  const handleSendMessage = useCallback(
+    async (text) => {
       const elapsed = (Date.now() - sessionStartRef.current) / 1000;
       const mm = String(Math.floor(elapsed / 60)).padStart(1, "0");
       const ss = String(Math.floor(elapsed % 60)).padStart(2, "0");
@@ -387,8 +395,24 @@ export default function CanvasPage() {
         content: text,
         timestamp: `${mm}:${ss}`,
       });
+      if (!session.sessionId) return;
+      try {
+        const result = await api.sendMessage(
+          session.sessionId,
+          text,
+          dialogueRef.current,
+        );
+        addMessage({
+          role: "assistant",
+          content: result.response,
+          timestamp: `${mm}:${ss}`,
+        });
+        setAiOpen(true);
+      } catch (err) {
+        console.error("[CanvasPage] sendMessage failed:", err);
+      }
     },
-    [addMessage],
+    [addMessage, session.sessionId],
   );
 
   const {
@@ -726,7 +750,7 @@ export default function CanvasPage() {
           messages={messages}
           isConnected={isConnected}
           isSpeaking={isSpeaking}
-          onAddTranscript={handleAddTranscript}
+          onSendMessage={handleSendMessage}
         />
       </div>
     </div>

@@ -2,7 +2,7 @@ import os
 import json
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from models import IntakeResponse
@@ -301,6 +301,48 @@ Rules:
         return fallback
     except Exception as e:
         logger.error(f"Claude reflection questions call failed: {e}")
+        return fallback
+
+
+def call_user_message(
+    message: str,
+    themes: list[str],
+    dialogue_history: list[dict],
+) -> str:
+    """
+    Call 5 — Respond to a direct text message from the user during the drawing session.
+    Returns a warm 1-2 sentence Arverie response grounded in the user's message and themes.
+    """
+    normalized_history = _normalize_dialogue_history(dialogue_history)
+
+    system = f"""You are Arverie, a warm reflective companion sitting alongside someone while they draw.
+SESSION THEMES: {themes}
+CONVERSATION SO FAR: {json.dumps(normalized_history, ensure_ascii=True)}
+
+The user has just typed a message to you. Respond with warmth in 1-2 sentences.
+
+Rules:
+- Stay grounded in what the user actually said and the session themes.
+- Keep language plain and spoken - not clinical, not poetic to excess.
+- Mirror the user's own words when natural.
+- Never interpret or explain meaning. Never say "this means...".
+- No stage directions, brackets, quotation marks, or emojis.
+- Output only the words of your response. Nothing else."""
+
+    fallback = "I hear you. Take your time with whatever is coming up."
+
+    try:
+        client = get_claude_client()
+        result = client.messages.create(
+            model=MODEL,
+            max_tokens=128,
+            system=system,
+            messages=[{"role": "user", "content": message}],
+        )
+        response = _sanitize_trigger_response(_extract_text(result))
+        return response or fallback
+    except Exception as e:
+        logger.error(f"Claude user message call failed: {e}")
         return fallback
 
 
