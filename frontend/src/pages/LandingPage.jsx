@@ -125,7 +125,9 @@ export default function LandingPage() {
   // Layout refs
   const sceneRef         = useRef(null)
   const logoContainerRef = useRef(null)
-  const svgContainerRef  = useRef(null)   // div with dangerouslySetInnerHTML
+  const svgContainerRef  = useRef(null)   // wrapper div for video + static img
+  const videoRef         = useRef(null)   // the animation video element
+  const logoImgRef       = useRef(null)   // logo1.png — replaces video after it ends
   const glowRef          = useRef(null)
   const shimmerRef       = useRef(null) // unused, kept for potential future use
   const pulseRef         = useRef(null)
@@ -231,6 +233,21 @@ export default function LandingPage() {
     }, sceneRef)
 
     return () => ctx.revert()
+  }, [])
+
+  // ─── Video → static image crossfade ─────────────────────────────────────
+  // When the animation ends, silently swap to logo1.png so the last frame is
+  // never visible as a frozen video artifact. Opacity crossfade keeps it seamless.
+  useEffect(() => {
+    const video = videoRef.current
+    const img   = logoImgRef.current
+    if (!video || !img) return
+    const onEnded = () => {
+      gsap.to(video, { opacity: 0, duration: 0.35, ease: 'linear' })
+      gsap.to(img,   { opacity: 1, duration: 0.35, ease: 'linear' })
+    }
+    video.addEventListener('ended', onEnded)
+    return () => video.removeEventListener('ended', onEnded)
   }, [])
 
   // ─── Particle drift ──────────────────────────────────────────────────────
@@ -417,21 +434,42 @@ export default function LandingPage() {
             }}
           />
 
-          {/* Animated logo video */}
-          <video
+          {/* Video + static image share this wrapper — GSAP targets it for 3D/breathing */}
+          <div
             ref={svgContainerRef}
-            src={logoAnimation}
-            autoPlay
-            muted
-            playsInline
             style={{
               position: 'relative', zIndex: 1,
-              width: '100%', display: 'block',
-              mixBlendMode: 'multiply',
+              width: '100%',
               transformOrigin: 'center center',
               willChange: 'transform, opacity, filter',
             }}
-          />
+          >
+            <video
+              ref={videoRef}
+              src={logoAnimation}
+              autoPlay
+              muted
+              playsInline
+              style={{
+                width: '100%', display: 'block',
+                mixBlendMode: 'multiply',
+              }}
+            />
+            {/* logo1.png — invisible until video ends, then crossfades in */}
+            <img
+              ref={logoImgRef}
+              src="/logo1.png"
+              alt="Arverié"
+              style={{
+                position: 'absolute', inset: 0,
+                width: '100%', height: '100%',
+                objectFit: 'contain',
+                mixBlendMode: 'multiply',
+                opacity: 0,
+                pointerEvents: 'none',
+              }}
+            />
+          </div>
         </div>
 
         {/* ── "ARVERIÉ" — individual letters for 3D stagger ── */}

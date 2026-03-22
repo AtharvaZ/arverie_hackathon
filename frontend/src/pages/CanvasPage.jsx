@@ -237,6 +237,11 @@ export default function CanvasPage() {
     prevBrush.current = brush
   }, [brush])
 
+  // ── Sync --brush-size CSS variable for CustomCursor brush preview ──
+  useEffect(() => {
+    document.documentElement.style.setProperty('--brush-size', size + 'px')
+  }, [size])
+
   // ── Track opacity changes (debounced) ──
   const opacityRecordTimer = useRef(null)
   useEffect(() => {
@@ -314,7 +319,10 @@ export default function CanvasPage() {
         {/* Canvas column */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Drawing area */}
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <div
+            data-cursor="canvas"
+            style={{ flex: 1, position: 'relative', overflow: 'hidden' }}
+          >
             {/* Parchment + grain background */}
             <div style={{ position: 'absolute', inset: 0, ...GRAIN_BG }} />
             {/* Drawing canvas on top */}
