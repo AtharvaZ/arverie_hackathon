@@ -1,4 +1,3 @@
-#pulled 1
 import os
 import base64
 import logging
@@ -39,7 +38,14 @@ from claude_calls import (
     call_reflection_questions,
     call_session_letter,
 )
-from supabase_client import create_session, get_sessions, complete_session, upload_drawing, delete_session
+from supabase_client import (
+    create_session,
+    get_sessions,
+    complete_session,
+    upload_drawing,
+    delete_session,
+    get_session_owner,
+)
 from hume_client import HumeClient
 from input_security import detect_suspicious_prompt_input, normalize_user_text
 from rate_limits import SlidingWindowRateLimiter
@@ -68,8 +74,8 @@ REQUIRED_ENV_KEYS = [
 
 validate_required_env(REQUIRED_ENV_KEYS)
 
-AUTH_ENFORCEMENT_MODE = os.getenv("AUTH_ENFORCEMENT_MODE", "compat").strip().lower()
-WS_AUTH_ENFORCEMENT_MODE = os.getenv("WS_AUTH_ENFORCEMENT_MODE", "compat").strip().lower()
+AUTH_ENFORCEMENT_MODE = os.getenv("AUTH_ENFORCEMENT_MODE", "strict").strip().lower()
+WS_AUTH_ENFORCEMENT_MODE = os.getenv("WS_AUTH_ENFORCEMENT_MODE", "strict").strip().lower()
 SESSION_TOKEN_TTL_SECONDS = int(os.getenv("SESSION_TOKEN_TTL_SECONDS", "21600"))
 USER_TOKEN_TTL_SECONDS = int(os.getenv("USER_TOKEN_TTL_SECONDS", "2592000"))
 WS_TOKEN_TTL_SECONDS = int(os.getenv("WS_TOKEN_TTL_SECONDS", "300"))
@@ -190,6 +196,20 @@ def _authorize_user_access(user_id: str, authorization: str | None) -> dict | No
         )
         return None
     return claims
+
+
+def _resolve_session_owner(session_id: str) -> str | None:
+    owner = session_owners.get(session_id)
+    if owner:
+        return owner
+    try:
+        owner = get_session_owner(session_id)
+    except Exception as exc:
+        logger.error(f"Failed to resolve owner for session {session_id}: {exc}")
+        return None
+    if owner:
+        session_owners[session_id] = owner
+    return owner
 
 _extra_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
@@ -320,9 +340,30 @@ async def _inject_opening_after_delay(hume: HumeClient, text: str) -> None:
 
 
 @app.post("/session/start", response_model=StartSessionResponse)
-async def start_session(body: StartSessionRequest) -> StartSessionResponse:
+async def start_session(
+    body: StartSessionRequest,
+    authorization: str | None = Header(default=None),
+) -> StartSessionResponse:
     try:
         user_id = str(body.user_id)
+        existing_claims = _verify_auth_token(authorization, {"user"}) if authorization else None
+        if existing_claims and existing_claims.get("user_id") != user_id:
+            _security_event(
+                "start_session_user_mismatch",
+                requested_user_id=user_id,
+                token_user_id=existing_claims.get("user_id"),
+            )
+            raise HTTPException(status_code=403, detail="User token mismatch")
+
+        if not existing_claims and _auth_is_strict():
+            has_existing_sessions = len(get_sessions(user_id, limit=1)) > 0
+            if has_existing_sessions:
+                _security_event("start_session_missing_user_token", user_id=user_id)
+                raise HTTPException(
+                    status_code=401,
+                    detail="Missing user token for existing account",
+                )
+
         session_id = create_session(user_id)
         active_sessions[session_id] = CanvasEventProcessor()
         session_intake_data[session_id] = {}
@@ -453,7 +494,7 @@ async def session_ws_token(
     authorization: str | None = Header(default=None),
 ) -> WsTokenResponse:
     _touch_session(body.session_id)
-    owner = session_owners.get(body.session_id)
+    owner = _resolve_session_owner(body.session_id)
     claims = _authorize_session_access(body.session_id, authorization, user_id=owner)
     if claims and claims.get("user_id"):
         owner = claims["user_id"]
@@ -471,7 +512,7 @@ async def canvas_snapshot(
     x_forwarded_for: str | None = Header(default=None),
 ) -> CanvasSnapshotResponse:
     try:
-        owner = session_owners.get(body.session_id)
+        owner = _resolve_session_owner(body.session_id)
         _authorize_session_access(body.session_id, authorization, user_id=owner)
         _touch_session(body.session_id)
         _enforce_rate_limit("snapshot:session", body.session_id, LIMIT_SNAPSHOT_PER_MINUTE)
@@ -569,7 +610,7 @@ async def session_end(
     x_forwarded_for: str | None = Header(default=None),
 ) -> SessionEndResponse:
     try:
-        owner = session_owners.get(body.session_id)
+        owner = _resolve_session_owner(body.session_id)
         _authorize_session_access(body.session_id, authorization, user_id=owner)
         _touch_session(body.session_id)
         _enforce_rate_limit("end:session", body.session_id, LIMIT_END_PER_MINUTE)
@@ -634,7 +675,15 @@ async def session_complete(
     x_forwarded_for: str | None = Header(default=None),
 ) -> SessionCompleteResponse:
     try:
-        owner = session_owners.get(body.session_id)
+        owner = _resolve_session_owner(body.session_id)
+        if owner and owner != body.user_id:
+            _security_event(
+                "session_complete_owner_mismatch",
+                session_id=body.session_id,
+                owner=owner,
+                request_user=body.user_id,
+            )
+            raise HTTPException(status_code=403, detail="Session owner mismatch")
         _authorize_session_access(body.session_id, authorization, user_id=owner or body.user_id)
         _touch_session(body.session_id)
         _enforce_rate_limit("complete:session", body.session_id, LIMIT_COMPLETE_PER_MINUTE)
@@ -682,7 +731,7 @@ async def session_complete(
                 "color_palette": color_palette,
             },
         }
-        complete_session(body.session_id, session_row)
+        complete_session(body.session_id, body.user_id, session_row)
 
         # Clean up all in-memory state for this session
         active_sessions.pop(body.session_id, None)
@@ -739,8 +788,21 @@ async def delete_session_route(
     authorization: str | None = Header(default=None),
 ) -> dict:
     try:
+        owner = _resolve_session_owner(session_id)
+        if owner is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        if owner != user_id:
+            _security_event(
+                "delete_owner_mismatch",
+                session_id=session_id,
+                owner=owner,
+                request_user=user_id,
+            )
+            raise HTTPException(status_code=403, detail="Session owner mismatch")
         _authorize_user_access(user_id, authorization)
-        delete_session(session_id)
+        delete_session(session_id, user_id)
+        session_owners.pop(session_id, None)
+        session_last_seen.pop(session_id, None)
         return {"deleted": session_id}
     except HTTPException:
         raise
@@ -765,7 +827,7 @@ async def hume_session(websocket: WebSocket) -> None:
 
     _touch_session(session_id)
 
-    owner = session_owners.get(session_id)
+    owner = _resolve_session_owner(session_id)
     _prune_used_ws_nonces()
     if _ws_auth_is_strict():
         try:

@@ -45,19 +45,40 @@ def get_sessions(user_id: str, limit: int = 50) -> list[dict]:
         return []
 
 
-def complete_session(session_id: str, data: dict) -> None:
-    """Single update with all session data. Called once at /session/complete."""
+def get_session_owner(session_id: str) -> Optional[str]:
+    """Return the owner user_id for a session, or None if not found."""
     try:
         client = get_supabase()
-        client.table("sessions").update(data).eq("id", session_id).execute()
+        result = (
+            client.table("sessions")
+            .select("user_id")
+            .eq("id", session_id)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            return None
+        owner = rows[0].get("user_id")
+        return str(owner) if owner else None
+    except Exception as e:
+        logger.error(f"Failed to fetch owner for session {session_id}: {e}")
+        raise
+
+
+def complete_session(session_id: str, user_id: str, data: dict) -> None:
+    """Single update with all session data, scoped by session owner."""
+    try:
+        client = get_supabase()
+        client.table("sessions").update(data).eq("id", session_id).eq("user_id", user_id).execute()
         logger.info(f"Session data written to Supabase: {session_id}")
     except Exception as e:
         logger.error(f"Failed to complete session {session_id} in Supabase: {e}")
         raise
 
 
-def delete_session(session_id: str) -> None:
-    """Delete a session row and its drawing from storage."""
+def delete_session(session_id: str, user_id: str) -> None:
+    """Delete a session row and its drawing from storage, scoped by owner."""
     try:
         client = get_supabase()
         # Remove drawing from storage (ignore errors if file doesn't exist)
@@ -65,7 +86,7 @@ def delete_session(session_id: str) -> None:
             client.storage.from_("drawings").remove([f"{session_id}.png"])
         except Exception as e:
             logger.warning(f"Could not remove drawing for session {session_id}: {e}")
-        client.table("sessions").delete().eq("id", session_id).execute()
+        client.table("sessions").delete().eq("id", session_id).eq("user_id", user_id).execute()
         logger.info(f"Deleted session: {session_id}")
     except Exception as e:
         logger.error(f"Failed to delete session {session_id}: {e}")

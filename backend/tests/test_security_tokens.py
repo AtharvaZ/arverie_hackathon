@@ -1,10 +1,20 @@
 import os
+import base64
 import unittest
 
 from security import SecurityError, mint_signed_token, parse_bearer_token, verify_signed_token
 
 
 class SecurityTokenTests(unittest.TestCase):
+    @staticmethod
+    def _tamper_signature(token: str) -> str:
+        body, sig = token.rsplit(".", 1)
+        padding = "=" * (-len(sig) % 4)
+        raw = bytearray(base64.urlsafe_b64decode(sig + padding))
+        raw[0] ^= 0x01
+        tampered_sig = base64.urlsafe_b64encode(bytes(raw)).decode("utf-8").rstrip("=")
+        return f"{body}.{tampered_sig}"
+
     def test_parse_bearer_token(self) -> None:
         self.assertEqual(parse_bearer_token("Bearer abc.def"), "abc.def")
         self.assertIsNone(parse_bearer_token("Token abc"))
@@ -30,7 +40,7 @@ class SecurityTokenTests(unittest.TestCase):
     def test_verify_rejects_invalid_signature(self) -> None:
         secret = "unit-test-secret"
         token = mint_signed_token({"scope": "session"}, secret, ttl_seconds=60)
-        tampered = token[:-1] + ("a" if token[-1] != "a" else "b")
+        tampered = self._tamper_signature(token)
         with self.assertRaises(SecurityError):
             verify_signed_token(tampered, secret, {"session"})
 
