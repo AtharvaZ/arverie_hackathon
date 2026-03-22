@@ -7,6 +7,7 @@ import re
 from typing import Optional, Any
 import websockets
 from dotenv import load_dotenv
+from rate_limits import SlidingWindowRateLimiter
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -18,6 +19,8 @@ if not logger.handlers:
 logger.setLevel(logging.DEBUG)
 
 MAX_INJECTION_CHARS = 220
+MAX_WS_AUDIO_B64_CHARS = int(os.getenv("MAX_WS_AUDIO_B64_CHARS", "12000"))
+MAX_WS_AUDIO_PACKETS_PER_SECOND = int(os.getenv("MAX_WS_AUDIO_PACKETS_PER_SECOND", "80"))
 
 HUME_SYSTEM_PROMPT = """You are Arverie, a quiet drawing companion.
 
@@ -73,6 +76,7 @@ class HumeClient:
         self._hume_ready_event: asyncio.Event = asyncio.Event()
         self._hume_connected_at: float = 0.0
         self._last_ready_wait_log_at: float = 0.0
+        self._audio_limiter = SlidingWindowRateLimiter()
 
     def _hume_is_open(self) -> bool:
         """Check if the Hume WebSocket is open — compatible with websockets v12 and v13+."""
@@ -177,6 +181,21 @@ class HumeClient:
         """Build a canonical audio_input payload and reject malformed packets."""
         audio_b64 = data.get("data")
         if not isinstance(audio_b64, str) or not audio_b64.strip():
+            return None
+        if len(audio_b64) > MAX_WS_AUDIO_B64_CHARS:
+            logger.warning(
+                "Dropped oversized audio_input payload for session %s (len=%s)",
+                self.session_id,
+                len(audio_b64),
+            )
+            return None
+        allowed, _ = self._audio_limiter.check(
+            key=f"audio:{self.session_id}",
+            limit=MAX_WS_AUDIO_PACKETS_PER_SECOND,
+            window_seconds=1.0,
+        )
+        if not allowed:
+            logger.warning("Dropped rate-limited audio_input for session %s", self.session_id)
             return None
         return {"type": "audio_input", "data": audio_b64}
 

@@ -8,6 +8,7 @@ const WS_BASE = apiUrl.startsWith("http")
 const SAMPLE_RATE = 16000;
 const DEFAULT_OUTPUT_SAMPLE_RATE = 48000;
 const BUFFER_SIZE = 4096;
+const MAX_AUDIO_B64_CHARS = 12000;
 
 function floatTo16BitPCM(floatSamples) {
   const buffer = new Int16Array(floatSamples.length);
@@ -232,7 +233,7 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
   }, [handleMessage]);
 
   const connect = useCallback(
-    async (sessionId) => {
+    async (sessionId, wsToken = null) => {
       if (wsRef.current) return; // already connected
       const generation = ++connectGenerationRef.current;
 
@@ -249,9 +250,9 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
       audioCtxRef.current = ctx;
 
       // Open WebSocket to backend proxy
-      const ws = new WebSocket(
-        `${WS_BASE}/hume/session?session_id=${sessionId}`,
-      );
+      const query = new URLSearchParams({ session_id: sessionId });
+      if (wsToken) query.set("ws_token", wsToken);
+      const ws = new WebSocket(`${WS_BASE}/hume/session?${query.toString()}`);
       wsRef.current = ws;
 
       handleMessageRef.current = handleMessage;
@@ -349,6 +350,7 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
           const floatData = e.inputBuffer.getChannelData(0);
           const int16 = floatTo16BitPCM(floatData);
           const b64 = int16ToBase64(int16);
+          if (b64.length > MAX_AUDIO_B64_CHARS) return;
           ws.send(JSON.stringify({ type: "audio_input", data: b64 }));
         };
 

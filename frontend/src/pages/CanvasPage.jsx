@@ -387,19 +387,26 @@ export default function CanvasPage() {
 
   const handleSendMessage = useCallback(
     async (text) => {
+      const trimmed = (text || "").trim();
+      if (!trimmed) return;
+      if (trimmed.length > 1200) {
+        console.warn("[CanvasPage] Message too long; max 1200 characters");
+        return;
+      }
+
       const elapsed = (Date.now() - sessionStartRef.current) / 1000;
       const mm = String(Math.floor(elapsed / 60)).padStart(1, "0");
       const ss = String(Math.floor(elapsed % 60)).padStart(2, "0");
       addMessage({
         role: "user",
-        content: text,
+        content: trimmed,
         timestamp: `${mm}:${ss}`,
       });
       if (!session.sessionId) return;
       try {
         const result = await api.sendMessage(
           session.sessionId,
-          text,
+          trimmed,
           dialogueRef.current,
         );
         addMessage({
@@ -448,9 +455,19 @@ export default function CanvasPage() {
   // Connect Hume on mount if we have a sessionId
   useEffect(() => {
     if (session.sessionId) {
-      connectHume(session.sessionId).catch((err) =>
-        console.error("[CanvasPage] Hume connect failed:", err),
-      );
+      api
+        .getWsToken(session.sessionId)
+        .then(({ ws_token }) => connectHume(session.sessionId, ws_token))
+        .catch((err) => {
+          console.warn(
+            "[CanvasPage] WS token request failed, trying compatibility mode",
+            err,
+          );
+          return connectHume(session.sessionId);
+        })
+        .catch((err) =>
+          console.error("[CanvasPage] Hume connect failed:", err),
+        );
     }
     return () => {
       disconnectHume();

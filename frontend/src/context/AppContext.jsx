@@ -183,6 +183,7 @@ export function AppProvider({ children }) {
   }, [soundOn]);
 
   const resetSession = useCallback(() => {
+    api.setAuthTokens({ sessionToken: null });
     setSession((s) => ({
       ...defaultSession,
       userId: s.userId, // preserve userId across resets

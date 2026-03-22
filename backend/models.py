@@ -18,12 +18,15 @@ class StartSessionRequest(BaseModel):
 
 class StartSessionResponse(BaseModel):
     session_id: str
+    session_token: str
+    user_token: str
+    auth_mode: str
 
 
 class IntakeRequest(BaseModel):
     session_id: str
-    transcript: str
-    mood_checkin: str
+    transcript: str = Field(min_length=1, max_length=6000)
+    mood_checkin: str = Field(min_length=1, max_length=120)
 
 
 class IntakeResponse(BaseModel):
@@ -72,7 +75,7 @@ class CanvasSnapshotResponse(BaseModel):
 
 class SessionEndRequest(BaseModel):
     session_id: str
-    image_base64: str
+    image_base64: str = Field(min_length=32, max_length=12_000_000)
     canvas_summary: dict
     dialogue_history: list[dict] = Field(default_factory=list)
 
@@ -99,12 +102,20 @@ class SessionCompleteResponse(BaseModel):
 
 class UserMessageRequest(BaseModel):
     session_id: str
-    message: str
+    message: str = Field(min_length=1, max_length=1200)
     dialogue_history: list[dict] = Field(default_factory=list)
 
 
 class UserMessageResponse(BaseModel):
     response: str
+
+
+class WsTokenRequest(BaseModel):
+    session_id: str
+
+
+class WsTokenResponse(BaseModel):
+    ws_token: str
 
 
 class SessionSummary(BaseModel):

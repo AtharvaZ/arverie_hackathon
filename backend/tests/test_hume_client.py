@@ -65,6 +65,13 @@ class HumeClientProxyTests(unittest.IsolatedAsyncioTestCase):
             {"type": "audio_input", "data": "xyz"},
         )
 
+    async def test_build_hume_audio_input_rejects_oversized_payload(self) -> None:
+        client = HumeClient("session-3")
+        oversized = "a" * 13000
+        self.assertIsNone(
+            client._build_hume_audio_input({"type": "audio_input", "data": oversized})
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

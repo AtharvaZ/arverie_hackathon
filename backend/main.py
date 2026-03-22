@@ -2,9 +2,11 @@ import os
 import base64
 import logging
 import asyncio
+import time
+import json
 from functools import partial
 from uuid import uuid4
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
@@ -22,6 +24,8 @@ from models import (
     SessionCompleteResponse,
     UserMessageRequest,
     UserMessageResponse,
+    WsTokenRequest,
+    WsTokenResponse,
     SessionListResponse,
     SessionSummary,
 )
@@ -36,12 +40,155 @@ from claude_calls import (
 )
 from supabase_client import create_session, get_sessions, complete_session, upload_drawing
 from hume_client import HumeClient
+from input_security import detect_suspicious_prompt_input, normalize_user_text
+from rate_limits import SlidingWindowRateLimiter
+from session_cleanup import get_stale_session_ids
+from security import (
+    SecurityError,
+    mint_signed_token,
+    parse_bearer_token,
+    validate_required_env,
+    verify_signed_token,
+)
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Arverié Backend")
+
+REQUIRED_ENV_KEYS = [
+    "ANTHROPIC_API_KEY",
+    "HUME_API_KEY",
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_KEY",
+    "SESSION_TOKEN_SECRET",
+]
+
+validate_required_env(REQUIRED_ENV_KEYS)
+
+AUTH_ENFORCEMENT_MODE = os.getenv("AUTH_ENFORCEMENT_MODE", "compat").strip().lower()
+WS_AUTH_ENFORCEMENT_MODE = os.getenv("WS_AUTH_ENFORCEMENT_MODE", "compat").strip().lower()
+SESSION_TOKEN_TTL_SECONDS = int(os.getenv("SESSION_TOKEN_TTL_SECONDS", "21600"))
+USER_TOKEN_TTL_SECONDS = int(os.getenv("USER_TOKEN_TTL_SECONDS", "2592000"))
+WS_TOKEN_TTL_SECONDS = int(os.getenv("WS_TOKEN_TTL_SECONDS", "300"))
+SESSION_TOKEN_SECRET = os.getenv("SESSION_TOKEN_SECRET", "")
+MAX_IMAGE_BYTES = int(os.getenv("MAX_IMAGE_BYTES", str(4 * 1024 * 1024)))
+
+LIMIT_INTAKE_PER_MINUTE = int(os.getenv("LIMIT_INTAKE_PER_MINUTE", "12"))
+LIMIT_MESSAGE_PER_MINUTE = int(os.getenv("LIMIT_MESSAGE_PER_MINUTE", "30"))
+LIMIT_SNAPSHOT_PER_MINUTE = int(os.getenv("LIMIT_SNAPSHOT_PER_MINUTE", "120"))
+LIMIT_END_PER_MINUTE = int(os.getenv("LIMIT_END_PER_MINUTE", "6"))
+LIMIT_COMPLETE_PER_MINUTE = int(os.getenv("LIMIT_COMPLETE_PER_MINUTE", "6"))
+LIMIT_SESSIONS_READ_PER_MINUTE = int(os.getenv("LIMIT_SESSIONS_READ_PER_MINUTE", "20"))
+LIMIT_WS_CONNECT_PER_MINUTE = int(os.getenv("LIMIT_WS_CONNECT_PER_MINUTE", "12"))
+SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", "7200"))
+CLEANUP_INTERVAL_SECONDS = int(os.getenv("CLEANUP_INTERVAL_SECONDS", "60"))
+ENABLE_SESSION_CLEANUP = os.getenv("ENABLE_SESSION_CLEANUP", "1") == "1"
+
+MESSAGE_POLICY_MODE = os.getenv("MESSAGE_POLICY_MODE", "enforce").strip().lower()
+
+
+def _auth_is_strict() -> bool:
+    return AUTH_ENFORCEMENT_MODE == "strict"
+
+
+def _ws_auth_is_strict() -> bool:
+    return WS_AUTH_ENFORCEMENT_MODE == "strict"
+
+
+def _mint_session_token(session_id: str, user_id: str) -> str:
+    return mint_signed_token(
+        {
+            "scope": "session",
+            "session_id": session_id,
+            "user_id": user_id,
+        },
+        SESSION_TOKEN_SECRET,
+        ttl_seconds=SESSION_TOKEN_TTL_SECONDS,
+    )
+
+
+def _mint_user_token(user_id: str) -> str:
+    return mint_signed_token(
+        {
+            "scope": "user",
+            "user_id": user_id,
+        },
+        SESSION_TOKEN_SECRET,
+        ttl_seconds=USER_TOKEN_TTL_SECONDS,
+    )
+
+
+def _mint_ws_token(session_id: str, user_id: str) -> str:
+    return mint_signed_token(
+        {
+            "scope": "ws",
+            "session_id": session_id,
+            "user_id": user_id,
+        },
+        SESSION_TOKEN_SECRET,
+        ttl_seconds=WS_TOKEN_TTL_SECONDS,
+    )
+
+
+def _verify_auth_token(authorization: str | None, allowed_scopes: set[str]) -> dict | None:
+    token = parse_bearer_token(authorization)
+    if not token:
+        _security_event("auth_missing_token")
+        if _auth_is_strict():
+            raise HTTPException(status_code=401, detail="Missing bearer token")
+        return None
+    try:
+        return verify_signed_token(token, SESSION_TOKEN_SECRET, allowed_scopes)
+    except SecurityError as exc:
+        _security_event("auth_invalid_token", reason=str(exc))
+        if _auth_is_strict():
+            raise HTTPException(status_code=401, detail=str(exc)) from exc
+        logger.warning(f"Auth token rejected in compat mode: {exc}")
+        return None
+
+
+def _authorize_session_access(
+    session_id: str,
+    authorization: str | None,
+    user_id: str | None = None,
+) -> dict | None:
+    claims = _verify_auth_token(authorization, {"session"})
+    if not claims:
+        return None
+    if claims.get("session_id") != session_id:
+        _security_event("auth_session_mismatch", session_id=session_id, token_session=claims.get("session_id"))
+        if _auth_is_strict():
+            raise HTTPException(status_code=403, detail="Session token mismatch")
+        logger.warning(
+            f"Session mismatch in compat mode: token={claims.get('session_id')} request={session_id}"
+        )
+        return None
+    if user_id and claims.get("user_id") != user_id:
+        _security_event("auth_user_mismatch", user_id=user_id, token_user=claims.get("user_id"))
+        if _auth_is_strict():
+            raise HTTPException(status_code=403, detail="User token mismatch")
+        logger.warning(
+            f"User mismatch in compat mode: token={claims.get('user_id')} request={user_id}"
+        )
+        return None
+    return claims
+
+
+def _authorize_user_access(user_id: str, authorization: str | None) -> dict | None:
+    claims = _verify_auth_token(authorization, {"user", "session"})
+    if not claims:
+        return None
+    if claims.get("user_id") != user_id:
+        _security_event("auth_user_scope_mismatch", user_id=user_id, token_user=claims.get("user_id"))
+        if _auth_is_strict():
+            raise HTTPException(status_code=403, detail="User token mismatch")
+        logger.warning(
+            f"User mismatch in compat mode: token={claims.get('user_id')} request={user_id}"
+        )
+        return None
+    return claims
 
 _extra_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
@@ -61,6 +208,91 @@ app.add_middleware(
 active_sessions: dict[str, CanvasEventProcessor] = {}
 active_hume_sessions: dict[str, HumeClient] = {}
 session_intake_data: dict[str, dict] = {}  # themes, transcript, mood per session
+session_owners: dict[str, str] = {}  # session_id -> user_id
+session_last_seen: dict[str, float] = {}  # session_id -> unix timestamp
+used_ws_nonces: dict[str, int] = {}  # nonce -> exp timestamp
+rate_limiter = SlidingWindowRateLimiter()
+security_counters: dict[str, int] = {}
+cleanup_task: asyncio.Task | None = None
+
+
+def _security_event(event: str, **metadata: object) -> None:
+    security_counters[event] = security_counters.get(event, 0) + 1
+    payload = {"event": event, "count": security_counters[event], **metadata}
+    logger.warning(f"SECURITY_EVENT {json.dumps(payload, ensure_ascii=True, sort_keys=True)}")
+
+
+def _touch_session(session_id: str) -> None:
+    session_last_seen[session_id] = time.time()
+
+
+async def _cleanup_stale_sessions_once() -> int:
+    stale_ids = get_stale_session_ids(
+        session_last_seen,
+        now_ts=time.time(),
+        ttl_seconds=SESSION_TTL_SECONDS,
+    )
+    for session_id in stale_ids:
+        active_sessions.pop(session_id, None)
+        session_intake_data.pop(session_id, None)
+        session_owners.pop(session_id, None)
+        session_last_seen.pop(session_id, None)
+        hume = active_hume_sessions.pop(session_id, None)
+        if hume:
+            await hume.close()
+        _security_event("session_ttl_cleanup", session_id=session_id)
+    return len(stale_ids)
+
+
+async def _cleanup_loop() -> None:
+    while True:
+        await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
+        try:
+            await _cleanup_stale_sessions_once()
+        except Exception as exc:
+            logger.error(f"Session cleanup loop error: {exc}")
+
+
+@app.on_event("startup")
+async def _on_startup() -> None:
+    global cleanup_task
+    if ENABLE_SESSION_CLEANUP and cleanup_task is None:
+        cleanup_task = asyncio.create_task(_cleanup_loop())
+
+
+@app.on_event("shutdown")
+async def _on_shutdown() -> None:
+    global cleanup_task
+    if cleanup_task:
+        cleanup_task.cancel()
+        cleanup_task = None
+
+
+def _client_ip(value: str | None) -> str:
+    if not value:
+        return "unknown"
+    return value.split(":")[0].strip() or "unknown"
+
+
+def _enforce_rate_limit(rule: str, key: str, limit: int, window_seconds: float = 60.0) -> None:
+    allowed, retry_after = rate_limiter.check(f"{rule}:{key}", limit=limit, window_seconds=window_seconds)
+    if not allowed:
+        _security_event("rate_limited", rule=rule, key=key, retry_after=round(retry_after, 3))
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "rate_limited",
+                "rule": rule,
+                "retry_after_seconds": max(1, int(retry_after) + 1),
+            },
+        )
+
+
+def _prune_used_ws_nonces() -> None:
+    now = int(time.time())
+    expired = [nonce for nonce, exp in used_ws_nonces.items() if exp <= now]
+    for nonce in expired:
+        used_ws_nonces.pop(nonce, None)
 
 
 async def _inject_opening_after_delay(hume: HumeClient, text: str) -> None:
@@ -100,24 +332,44 @@ async def _inject_opening_after_delay(hume: HumeClient, text: str) -> None:
 @app.post("/session/start", response_model=StartSessionResponse)
 async def start_session(body: StartSessionRequest) -> StartSessionResponse:
     try:
-        session_id = create_session(str(body.user_id))
+        user_id = str(body.user_id)
+        session_id = create_session(user_id)
         active_sessions[session_id] = CanvasEventProcessor()
         session_intake_data[session_id] = {}
+        session_owners[session_id] = user_id
+        _touch_session(session_id)
+        session_token = _mint_session_token(session_id, user_id)
+        user_token = _mint_user_token(user_id)
         logger.info(f"Session started: {session_id}")
-        return StartSessionResponse(session_id=session_id)
+        return StartSessionResponse(
+            session_id=session_id,
+            session_token=session_token,
+            user_token=user_token,
+            auth_mode=AUTH_ENFORCEMENT_MODE,
+        )
     except Exception as e:
         logger.error(f"Failed to start session: {e}")
         return JSONResponse(status_code=500, content={"error": "Failed to start session"})
 
 
 @app.post("/session/intake", response_model=IntakeResponse)
-async def session_intake(body: IntakeRequest) -> IntakeResponse:
+async def session_intake(
+    body: IntakeRequest,
+    authorization: str | None = Header(default=None),
+    x_forwarded_for: str | None = Header(default=None),
+) -> IntakeResponse:
     try:
+        _authorize_session_access(body.session_id, authorization)
+        _touch_session(body.session_id)
+        _enforce_rate_limit("intake:session", body.session_id, LIMIT_INTAKE_PER_MINUTE)
+        _enforce_rate_limit("intake:ip", _client_ip(x_forwarded_for), LIMIT_INTAKE_PER_MINUTE)
+
+        safe_transcript = normalize_user_text(body.transcript)
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, partial(call_intake, body.transcript, body.mood_checkin))
+        result = await loop.run_in_executor(None, partial(call_intake, safe_transcript, body.mood_checkin))
         session_intake_data[body.session_id] = {
             "themes": result.themes,
-            "transcript": body.transcript,
+            "transcript": safe_transcript,
             "mood_checkin": body.mood_checkin,
             "drawing_prompt": result.drawing_prompt,
             "opening_response": result.opening_response,
@@ -140,14 +392,43 @@ async def session_intake(body: IntakeRequest) -> IntakeResponse:
             except Exception as inject_err:
                 logger.error(f"Hume intake injection failed (non-fatal): {inject_err}")
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Intake failed for session {body.session_id}: {e}")
         return JSONResponse(status_code=500, content={"error": "Something went wrong"})
 
 
 @app.post("/session/message", response_model=UserMessageResponse)
-async def session_message(body: UserMessageRequest) -> UserMessageResponse:
+async def session_message(
+    body: UserMessageRequest,
+    authorization: str | None = Header(default=None),
+    x_forwarded_for: str | None = Header(default=None),
+) -> UserMessageResponse:
     try:
+        _authorize_session_access(body.session_id, authorization)
+        _touch_session(body.session_id)
+        _enforce_rate_limit("message:session", body.session_id, LIMIT_MESSAGE_PER_MINUTE)
+        _enforce_rate_limit("message:ip", _client_ip(x_forwarded_for), LIMIT_MESSAGE_PER_MINUTE)
+
+        safe_message = normalize_user_text(body.message)
+        suspicious = detect_suspicious_prompt_input(safe_message)
+        if suspicious:
+            _security_event(
+                "message_suspicious",
+                session_id=body.session_id,
+                message_len=len(safe_message),
+                policy_mode=MESSAGE_POLICY_MODE,
+            )
+            if MESSAGE_POLICY_MODE == "enforce":
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "error": "unsafe_message",
+                        "message": "Your message could not be processed safely. Please rephrase it.",
+                    },
+                )
+
         intake = session_intake_data.get(body.session_id, {})
         themes = intake.get("themes", [])
         loop = asyncio.get_event_loop()
@@ -155,24 +436,54 @@ async def session_message(body: UserMessageRequest) -> UserMessageResponse:
             None,
             partial(
                 call_user_message,
-                message=body.message,
+                message=safe_message,
                 themes=themes,
                 dialogue_history=body.dialogue_history if isinstance(body.dialogue_history, list) else [],
             ),
         )
         logger.info(f"User message handled for session {body.session_id}")
         return UserMessageResponse(response=response_text)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Session message failed for {body.session_id}: {e}")
         return JSONResponse(status_code=500, content={"error": "Something went wrong"})
 
 
+@app.post("/session/ws-token", response_model=WsTokenResponse)
+async def session_ws_token(
+    body: WsTokenRequest,
+    authorization: str | None = Header(default=None),
+) -> WsTokenResponse:
+    _touch_session(body.session_id)
+    owner = session_owners.get(body.session_id)
+    claims = _authorize_session_access(body.session_id, authorization, user_id=owner)
+    if claims and claims.get("user_id"):
+        owner = claims["user_id"]
+    if not owner:
+        if _auth_is_strict():
+            raise HTTPException(status_code=404, detail="Unknown session")
+        owner = "unknown"
+    return WsTokenResponse(ws_token=_mint_ws_token(body.session_id, owner))
+
+
 @app.post("/session/canvas-snapshot", response_model=CanvasSnapshotResponse)
-async def canvas_snapshot(body: CanvasSnapshotRequest) -> CanvasSnapshotResponse:
+async def canvas_snapshot(
+    body: CanvasSnapshotRequest,
+    authorization: str | None = Header(default=None),
+    x_forwarded_for: str | None = Header(default=None),
+) -> CanvasSnapshotResponse:
     try:
+        owner = session_owners.get(body.session_id)
+        _authorize_session_access(body.session_id, authorization, user_id=owner)
+        _touch_session(body.session_id)
+        _enforce_rate_limit("snapshot:session", body.session_id, LIMIT_SNAPSHOT_PER_MINUTE)
+        _enforce_rate_limit("snapshot:ip", _client_ip(x_forwarded_for), LIMIT_SNAPSHOT_PER_MINUTE)
         processor = active_sessions.get(body.session_id)
         if not processor:
-            # Auto-recover instead of 404 — session state may have been lost on backend restart
+            if _auth_is_strict():
+                raise HTTPException(status_code=404, detail="Unknown active session")
+            # Auto-recover instead of 404 in compatibility mode.
             logger.warning(f"Session {body.session_id} not in active_sessions, auto-recovering")
             processor = CanvasEventProcessor()
             active_sessions[body.session_id] = processor
@@ -242,9 +553,34 @@ async def canvas_snapshot(body: CanvasSnapshotRequest) -> CanvasSnapshotResponse
 
 
 @app.post("/session/end", response_model=SessionEndResponse)
-async def session_end(body: SessionEndRequest) -> SessionEndResponse:
+async def session_end(
+    body: SessionEndRequest,
+    authorization: str | None = Header(default=None),
+    x_forwarded_for: str | None = Header(default=None),
+) -> SessionEndResponse:
     try:
-        image_bytes = base64.b64decode(body.image_base64)
+        owner = session_owners.get(body.session_id)
+        _authorize_session_access(body.session_id, authorization, user_id=owner)
+        _touch_session(body.session_id)
+        _enforce_rate_limit("end:session", body.session_id, LIMIT_END_PER_MINUTE)
+        _enforce_rate_limit("end:ip", _client_ip(x_forwarded_for), LIMIT_END_PER_MINUTE)
+
+        image_bytes = base64.b64decode(body.image_base64, validate=True)
+        if len(image_bytes) > MAX_IMAGE_BYTES:
+            _security_event(
+                "payload_rejected",
+                field="image_base64",
+                size_bytes=len(image_bytes),
+                max_bytes=MAX_IMAGE_BYTES,
+            )
+            raise HTTPException(
+                status_code=413,
+                detail={
+                    "error": "payload_too_large",
+                    "field": "image_base64",
+                    "max_bytes": MAX_IMAGE_BYTES,
+                },
+            )
         drawing_url = upload_drawing(body.session_id, image_bytes)
 
         loop = asyncio.get_event_loop()
@@ -274,14 +610,25 @@ async def session_end(body: SessionEndRequest) -> SessionEndResponse:
             vision_description=vision_description,
             reflection_questions=questions,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Session end failed for {body.session_id}: {e}")
         return JSONResponse(status_code=500, content={"error": "Something went wrong"})
 
 
 @app.post("/session/complete", response_model=SessionCompleteResponse)
-async def session_complete(body: SessionCompleteRequest) -> SessionCompleteResponse:
+async def session_complete(
+    body: SessionCompleteRequest,
+    authorization: str | None = Header(default=None),
+    x_forwarded_for: str | None = Header(default=None),
+) -> SessionCompleteResponse:
     try:
+        owner = session_owners.get(body.session_id)
+        _authorize_session_access(body.session_id, authorization, user_id=owner or body.user_id)
+        _touch_session(body.session_id)
+        _enforce_rate_limit("complete:session", body.session_id, LIMIT_COMPLETE_PER_MINUTE)
+        _enforce_rate_limit("complete:ip", _client_ip(x_forwarded_for), LIMIT_COMPLETE_PER_MINUTE)
         intake = session_intake_data.get(body.session_id, {})
         full_data = body.full_session_data
 
@@ -330,20 +677,31 @@ async def session_complete(body: SessionCompleteRequest) -> SessionCompleteRespo
         # Clean up all in-memory state for this session
         active_sessions.pop(body.session_id, None)
         session_intake_data.pop(body.session_id, None)
+        session_owners.pop(body.session_id, None)
+        session_last_seen.pop(body.session_id, None)
         hume = active_hume_sessions.pop(body.session_id, None)
         if hume:
             await hume.close()
 
         logger.info(f"Session completed and saved: {body.session_id}")
         return SessionCompleteResponse(letter=letter, color_palette=color_palette)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Session complete failed for {body.session_id}: {e}")
         return JSONResponse(status_code=500, content={"error": "Something went wrong"})
 
 
 @app.get("/sessions/{user_id}", response_model=SessionListResponse)
-async def list_sessions(user_id: str) -> SessionListResponse:
+async def list_sessions(
+    user_id: str,
+    authorization: str | None = Header(default=None),
+    x_forwarded_for: str | None = Header(default=None),
+) -> SessionListResponse:
     try:
+        _authorize_user_access(user_id, authorization)
+        _enforce_rate_limit("sessions:read:user", user_id, LIMIT_SESSIONS_READ_PER_MINUTE)
+        _enforce_rate_limit("sessions:read:ip", _client_ip(x_forwarded_for), LIMIT_SESSIONS_READ_PER_MINUTE)
         rows = get_sessions(user_id)
         sessions = [
             SessionSummary(
@@ -357,6 +715,8 @@ async def list_sessions(user_id: str) -> SessionListResponse:
             for r in rows
         ]
         return SessionListResponse(sessions=sessions)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"List sessions failed for user {user_id}: {e}")
         return JSONResponse(status_code=500, content={"error": "Something went wrong"})
@@ -366,9 +726,44 @@ async def list_sessions(user_id: str) -> SessionListResponse:
 async def hume_session(websocket: WebSocket) -> None:
     await websocket.accept()
     session_id = websocket.query_params.get("session_id", str(uuid4()))
+    ws_token = websocket.query_params.get("ws_token")
+    ws_ip = _client_ip(websocket.client.host if websocket.client else None)
+    try:
+        _enforce_rate_limit("ws:connect:ip", ws_ip, LIMIT_WS_CONNECT_PER_MINUTE)
+        _enforce_rate_limit("ws:connect:session", session_id, LIMIT_WS_CONNECT_PER_MINUTE)
+    except HTTPException as exc:
+        _security_event("ws_connect_rate_limited", session_id=session_id, ip=ws_ip)
+        await websocket.close(code=1008, reason=str(exc.detail))
+        return
 
-    # Auto-recover: if backend restarted, session_id may not be in active_sessions
+    _touch_session(session_id)
+
+    owner = session_owners.get(session_id)
+    _prune_used_ws_nonces()
+    if _ws_auth_is_strict():
+        try:
+            claims = verify_signed_token(ws_token or "", SESSION_TOKEN_SECRET, {"ws"})
+            if claims.get("session_id") != session_id:
+                raise SecurityError("WS token session mismatch")
+            if owner and claims.get("user_id") != owner:
+                raise SecurityError("WS token owner mismatch")
+            nonce = str(claims.get("nonce", "")).strip()
+            if not nonce:
+                raise SecurityError("WS token missing nonce")
+            if nonce in used_ws_nonces:
+                raise SecurityError("WS token replay detected")
+            used_ws_nonces[nonce] = int(claims.get("exp", 0))
+        except SecurityError as exc:
+            _security_event("ws_token_rejected", session_id=session_id, reason=str(exc))
+            await websocket.close(code=1008, reason=str(exc))
+            return
+
+    # Auto-recover only in compatibility mode.
     if session_id not in active_sessions:
+        if _ws_auth_is_strict():
+            _security_event("ws_unknown_session", session_id=session_id)
+            await websocket.close(code=1008, reason="Unknown session")
+            return
         active_sessions[session_id] = CanvasEventProcessor()
         session_intake_data[session_id] = {}
         logger.info(f"Auto-recovered session state for {session_id}")
@@ -398,4 +793,5 @@ async def hume_session(websocket: WebSocket) -> None:
         logger.error(f"Hume WebSocket error for session {session_id}: {e}")
     finally:
         active_hume_sessions.pop(session_id, None)
+        session_last_seen.pop(session_id, None)
         await hume_client.close()
