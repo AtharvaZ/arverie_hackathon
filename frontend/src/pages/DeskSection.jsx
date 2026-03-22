@@ -140,7 +140,6 @@ const DESK_CSS = `
   position:relative; width:960px; max-width:92vw; height:460px;
   transform:perspective(1000px) rotateX(18deg) rotateZ(0deg) scale(0.78);
   transform-origin:50% 80%;
-  transform-style:preserve-3d;
   filter:drop-shadow(0 60px 36px rgba(40,20,5,.4)) drop-shadow(0 24px 16px rgba(40,20,5,.28));
   will-change:transform;
 }
@@ -452,7 +451,8 @@ const DESK_CSS = `
 /* ── Journal Opening Overlay ── */
 .journal-overlay {
   position: fixed; inset: 0; z-index: 100;
-  background: rgba(26,56,59,0.8); backdrop-filter: blur(8px);
+  background: rgba(26,56,59,0.8);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
 }
 
@@ -606,12 +606,15 @@ export default function DeskSection() {
       if (!deskInView()) return;
       const goingDown = e.deltaY > 0;
       const goingUp = e.deltaY < 0;
+      // Normalize across browsers: Safari trackpad sends tiny deltas (2–5px),
+      // Chrome sends large ones (100px+). Clamp to [8, 80] for consistent feel.
+      const delta = Math.max(Math.min(Math.abs(e.deltaY), 80), 8) / 500;
       if (goingDown && progressRef.current < TOTAL_PHASES) {
         e.preventDefault();
-        applyAnim(progressRef.current + Math.abs(e.deltaY) / 500);
+        applyAnim(progressRef.current + delta);
       } else if (goingUp && progressRef.current > 0) {
         e.preventDefault();
-        applyAnim(progressRef.current - Math.abs(e.deltaY) / 500);
+        applyAnim(progressRef.current - delta);
       }
     }
 
@@ -625,12 +628,13 @@ export default function DeskSection() {
       touchStartY = e.touches[0].clientY;
       const goingDown = delta > 0;
       const goingUp = delta < 0;
+      const normalized = Math.max(Math.min(Math.abs(delta), 60), 4) / 300;
       if (goingDown && progressRef.current < TOTAL_PHASES) {
         e.preventDefault();
-        applyAnim(progressRef.current + Math.abs(delta) / 300);
+        applyAnim(progressRef.current + normalized);
       } else if (goingUp && progressRef.current > 0) {
         e.preventDefault();
-        applyAnim(progressRef.current - Math.abs(delta) / 300);
+        applyAnim(progressRef.current - normalized);
       }
     }
 
