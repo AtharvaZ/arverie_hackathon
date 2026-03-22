@@ -37,22 +37,69 @@ const DESK_CSS = `
   position:relative;
   height:100vh; overflow:hidden;
   display:flex; align-items:center; justify-content:center;
-  background:#EEE8D5; /* flat back wall */
+  background:transparent;
+}
+.room-wall {
+  --window-top: 15%;
+  --window-width: 420px;
+  --window-height: 240px;
+  --window-gap: 72px;
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:1;
+}
+.room-wall-piece {
+  position:absolute;
+  background:linear-gradient(180deg,#EEE8D5 0%,#E7DDC4 100%);
+}
+.room-wall-top {
+  top:0;
+  left:0;
+  right:0;
+  height:var(--window-top);
+}
+.room-wall-left {
+  top:var(--window-top);
+  bottom:22%;
+  left:0;
+  width:calc(50% - ((var(--window-width) * 2 + var(--window-gap)) / 2));
+}
+.room-wall-middle {
+  top:var(--window-top);
+  bottom:22%;
+  left:calc(50% - (var(--window-gap) / 2));
+  width:var(--window-gap);
+}
+.room-wall-right {
+  top:var(--window-top);
+  bottom:22%;
+  right:0;
+  width:calc(50% - ((var(--window-width) * 2 + var(--window-gap)) / 2));
+}
+.room-wall-bottom {
+  left:0;
+  right:0;
+  bottom:22%;
+  height:calc(100% - var(--window-top) - var(--window-height) - 22%);
 }
 .scene-texture {
   position:absolute; inset:0; pointer-events:none; opacity:.35;
   background:
     repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(140,110,60,.04) 3px,rgba(140,110,60,.04) 4px),
     repeating-linear-gradient(90deg,transparent,transparent 6px,rgba(140,110,60,.02) 6px,rgba(140,110,60,.02) 12px);
+  z-index:2;
 }
 .scene-vignette {
   position:absolute; inset:0; pointer-events:none;
   background:radial-gradient(ellipse at 50% 45%,transparent 35%,rgba(90,60,20,.13) 100%);
+  z-index:2;
 }
 .scene-lampglow {
   position:absolute; pointer-events:none; width:50%; height:65%;
   top:8%; left:50%; transform:translateX(-20%);
   background:radial-gradient(ellipse at 62% 18%,rgba(220,165,55,.08) 0%,rgba(200,140,40,.03) 45%,transparent 72%);
+  z-index:2;
 }
 
 /* Crown molding */
@@ -85,16 +132,27 @@ const DESK_CSS = `
 .room-window-wrap {
   position:absolute; top:15%; left:50%; transform:translateX(-50%);
   display:flex; gap:72px;
-  pointer-events:none; z-index:2;
+  pointer-events:none; z-index:4;
   will-change:transform,opacity;
 }
 .room-window-panel { display:flex; flex-direction:column; }
 /* Outer wall trim — window sill frame */
 .room-window-trim {
+  position:relative;
   padding:14px 14px 0 14px;
-  background:linear-gradient(180deg,#D4C890 0%,#C4B878 100%);
+  background:transparent;
   border-radius:4px 4px 0 0;
-  box-shadow:inset 0 4px 12px rgba(0,0,0,.12), 0 10px 30px rgba(50,28,5,.25);
+  box-shadow:0 10px 30px rgba(50,28,5,.25);
+}
+.room-window-trim::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:4px 4px 0 0;
+  box-shadow:
+    inset 0 0 0 14px #C4B878,
+    inset 0 4px 12px rgba(0,0,0,.12);
+  pointer-events:none;
 }
 /* Bottom sill ledge */
 .room-window-sill {
@@ -103,16 +161,14 @@ const DESK_CSS = `
   border-radius:0 0 4px 4px;
   box-shadow:0 6px 14px rgba(50,28,5,.28);
 }
-/* Glass pane — pure glass */
+/* Glass pane */
 .room-window-glass {
   width:420px; height:240px; position:relative;
-  background:linear-gradient(175deg,
-    #B8D0EE 0%,#C8E0F8 20%,
-    #DAEEFF 45%,
-    #D8C8A0 68%,#C4A870 82%,#B09050 100%
-  );
+  background:transparent;
   border-radius:2px;
-  box-shadow:inset 0 0 60px rgba(180,215,255,.12);
+  box-shadow:
+    inset 0 0 0 1px rgba(100,78,42,.34),
+    inset 0 0 40px rgba(255,220,170,.08);
 }
 .room-window-glass::before { content:none; }
 .room-window-glass::after  { content:none; }
@@ -524,9 +580,12 @@ const DESK_CSS = `
 .book-sub { font-size: 10px; color: rgba(255,235,185,.8); letter-spacing: 3px; text-transform: uppercase; }
 `;
 
-export default function DeskSection() {
+export default function DeskSection({
+  onDeskInViewChange,
+  sectionId = "desk-section",
+}) {
   const navigate = useNavigate();
-  const { user, session, pastSessions } = useApp();
+  const { user, setUserName, session, pastSessions } = useApp();
 
   // modal state — show if no name (user.name is always set in AppContext for now)
   const [showModal, setShowModal] = useState(false);
@@ -539,11 +598,46 @@ export default function DeskSection() {
   const deskWrapRef = useRef(null);
   const deskSceneRef = useRef(null);
   const wallNameRef = useRef(null);
+  const wallTopRef = useRef(null);
   const deskLegsRef = useRef(null);
   const windowsRef = useRef(null);
   const progressRef = useRef(0);
 
   const TOTAL_PHASES = 2;
+
+  useEffect(() => {
+    if (typeof onDeskInViewChange !== "function") return;
+    const TRIGGER_Y = 72;
+    let rafId = 0;
+
+    const updateDeskActive = () => {
+      rafId = 0;
+      const sectionEl = sectionRef.current;
+      const wallEl = wallTopRef.current;
+      if (!sectionEl || !wallEl) return;
+
+      const wallTop = wallEl.getBoundingClientRect().top;
+      const sectionBottom = sectionEl.getBoundingClientRect().bottom;
+      const isActive = wallTop <= TRIGGER_Y && sectionBottom > TRIGGER_Y;
+      onDeskInViewChange(isActive);
+    };
+
+    const requestUpdate = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(updateDeskActive);
+    };
+
+    updateDeskActive();
+    window.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("resize", requestUpdate);
+
+    return () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", requestUpdate);
+      window.removeEventListener("resize", requestUpdate);
+      onDeskInViewChange(false);
+    };
+  }, [onDeskInViewChange]);
 
   useEffect(() => {
     // All animation logic lives inside the effect so there is no stale-closure
@@ -586,8 +680,11 @@ export default function DeskSection() {
         deskLegsRef.current.style.transform = `translateY(${lerp(0, 28, legP)}px)`;
       }
       if (windowsRef.current) {
-        windowsRef.current.style.transform = `translateX(-50%) translateY(${lerp(0, -120, p1)}px)`;
-        windowsRef.current.style.opacity = String(lerp(1, 0, p1));
+        const windowFade = clamp01((p1 - 0.04) / 0.52);
+        const windowOpacity = 1 - windowFade * windowFade;
+        windowsRef.current.style.transform = `translateX(-50%) translateY(${lerp(0, -100, p1)}px)`;
+        windowsRef.current.style.opacity = String(windowOpacity);
+        windowsRef.current.style.filter = `blur(${lerp(0, 6, windowFade)}px)`;
       }
     }
 
@@ -673,7 +770,7 @@ export default function DeskSection() {
   function handleModalSave() {
     const trimmed = modalName.trim();
     if (!trimmed) return;
-    // AppContext user.name is static in this project; just proceed
+    setUserName(trimmed);
     setShowModal(false);
     setModalName("");
     if (pendingAction) {
@@ -695,10 +792,18 @@ export default function DeskSection() {
     <>
       <style>{DESK_CSS}</style>
 
-      <section className="scene-outer" ref={sectionRef}>
+      <section id={sectionId} className="scene-outer" ref={sectionRef}>
         <div className="scene-sticky">
-          {/* Room background — behind everything */}
-          <div className="room-molding" />
+          <div className="room-wall" aria-hidden="true">
+            <div className="room-wall-piece room-wall-top" />
+            <div className="room-wall-piece room-wall-left" />
+            <div className="room-wall-piece room-wall-middle" />
+            <div className="room-wall-piece room-wall-right" />
+            <div className="room-wall-piece room-wall-bottom" />
+          </div>
+
+          {/* Room details */}
+          <div className="room-molding" ref={wallTopRef} />
           <div className="room-floor" />
           <div className="room-baseboard" />
           <div className="room-window-wrap" ref={windowsRef}>

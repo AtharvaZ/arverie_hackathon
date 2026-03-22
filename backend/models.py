@@ -97,6 +97,16 @@ class SessionCompleteResponse(BaseModel):
     color_palette: list[str]
 
 
+class UserMessageRequest(BaseModel):
+    session_id: str
+    message: str
+    dialogue_history: list[dict] = Field(default_factory=list)
+
+
+class UserMessageResponse(BaseModel):
+    response: str
+
+
 class SessionSummary(BaseModel):
     id: str
     created_at: str

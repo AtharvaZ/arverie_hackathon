@@ -119,9 +119,9 @@ export default function HeroCanvasP5() {
   return (
     <div
       style={{
-        position: "absolute",
+        position: "fixed",
         inset: 0,
-        zIndex: 2,
+        zIndex: 1,
         pointerEvents: "none",
       }}
     >

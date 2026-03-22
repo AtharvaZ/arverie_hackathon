@@ -1,4 +1,5 @@
 import os
+import time
 import json
 import asyncio
 import logging
@@ -9,6 +10,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 logger = logging.getLogger(__name__)
+# Ensure logs are visible even when uvicorn overrides the root logger
+if not logger.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("[HUME] %(levelname)s %(message)s"))
+    logger.addHandler(_handler)
+logger.setLevel(logging.DEBUG)
 
 MAX_INJECTION_CHARS = 220
 
@@ -46,7 +53,10 @@ Canvas trigger policy:
 - Respond in one natural sentence that stays close to the trigger wording.
 
 Crisis protocol:
-If the user expresses self-harm intent, say exactly:
+Use crisis language ONLY when the user expresses explicit self-harm intent, plan, means, or immediate danger.
+Do NOT use crisis language for general distress like: "rough week", "stressed", "anxious", "down", "overwhelmed", or "tired".
+For general distress, respond with one calm validating sentence and stay with the drawing context.
+If and only if explicit self-harm intent/plan is present, say exactly:
 "I hear that things feel very heavy right now. Please reach out to the 988 Suicide and Crisis Lifeline - call or text 988. I'm still here with you."""
 
 
@@ -59,6 +69,10 @@ class HumeClient:
         self.injection_queue: list[str] = []
         self.dialogue_history: list[dict] = []
         self._running: bool = False
+        self._last_audio_input_time: float = 0.0
+        self._hume_ready_event: asyncio.Event = asyncio.Event()
+        self._hume_connected_at: float = 0.0
+        self._last_ready_wait_log_at: float = 0.0
 
     def _hume_is_open(self) -> bool:
         """Check if the Hume WebSocket is open — compatible with websockets v12 and v13+."""
@@ -91,7 +105,7 @@ class HumeClient:
         """
         self.client_ws = client_ws
         self._running = True
-        logger.info(f"Frontend WebSocket accepted for session {self.session_id} (Hume lazy)")
+        logger.info(f"=== Frontend WS accepted, session={self.session_id} — waiting for first audio_input to lazy-connect Hume ===")
 
         # Run both proxy directions concurrently.
         # _proxy_hume_to_client will wait until Hume is actually connected.
@@ -109,18 +123,25 @@ class HumeClient:
             return True
 
         api_key = os.getenv("HUME_API_KEY")
-        config_id = os.getenv("HUME_VOICE_ID", "").strip()
+        if not api_key:
+            logger.error("HUME_API_KEY is not set — Hume EVI will not connect")
+            return False
+
         hume_url = f"wss://api.hume.ai/v0/evi/chat?api_key={api_key}"
-        if config_id:
-            hume_url = f"{hume_url}&config_id={config_id}"
-            logger.info(f"Using Hume config_id: {config_id}")
 
         try:
+            logger.info(
+                "Connecting to Hume EVI... url (redacted key): "
+                "wss://api.hume.ai/v0/evi/chat?api_key=*** (config_id disabled)"
+            )
             self.hume_ws = await websockets.connect(hume_url)
+            self._hume_connected_at = time.time()
+            self._hume_ready_event.clear()
+            logger.info(f"Hume EVI WebSocket connected for session {self.session_id}")
             config_msg = {
                 "type": "session_settings",
                 "system_prompt": HUME_SYSTEM_PROMPT,
-                "voice": {"name": "KORA"},  # Options: ITO (measured), KORA (warm), DACHER (gentle), AURA (ethereal)
+                "voice": {"name": "KORA"},
                 "audio": {
                     "encoding": "linear16",
                     "sample_rate": 16000,
@@ -133,6 +154,31 @@ class HumeClient:
         except Exception as e:
             logger.error(f"Hume lazy connect failed for session {self.session_id}: {e}")
             return False
+
+    async def wait_until_ready(self, timeout_seconds: float = 4.0) -> bool:
+        """Wait for Hume readiness signal before sending assistant injections."""
+        if not await self._ensure_hume_connected():
+            return False
+        if self._hume_ready_event.is_set():
+            return True
+        try:
+            await asyncio.wait_for(
+                self._hume_ready_event.wait(),
+                timeout=timeout_seconds,
+            )
+            return True
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"Timed out waiting for Hume readiness for session {self.session_id}"
+            )
+            return False
+
+    def _build_hume_audio_input(self, data: dict[str, Any]) -> Optional[dict[str, str]]:
+        """Build a canonical audio_input payload and reject malformed packets."""
+        audio_b64 = data.get("data")
+        if not isinstance(audio_b64, str) or not audio_b64.strip():
+            return None
+        return {"type": "audio_input", "data": audio_b64}
 
     async def inject_trigger(self, text: str) -> None:
         """
@@ -175,28 +221,87 @@ class HumeClient:
             async for message in self.client_ws.iter_text():
                 try:
                     data = json.loads(message)
+                    if not isinstance(data, dict):
+                        logger.warning(f"Dropped non-object client WS payload for session {self.session_id}")
+                        continue
                     msg_type = data.get("type", "")
 
                     if msg_type == "audio_input":
-                        self.user_is_speaking = True
-                        if not await self._ensure_hume_connected():
+                        payload = self._build_hume_audio_input(data)
+                        if payload is None:
+                            logger.warning(f"Dropped malformed audio_input payload for session {self.session_id}")
                             continue
+
+                        self._last_audio_input_time = time.time()
+                        audio_len = len(payload.get("data", ""))
+                        logger.debug(f"audio_input received (b64 len={audio_len}), hume_open={self._hume_is_open()}")
+                        if not await self._ensure_hume_connected():
+                            logger.error("audio_input dropped — Hume failed to connect")
+                            continue
+                        if not self._hume_ready_event.is_set():
+                            now = time.time()
+                            ready_wait = now - self._hume_connected_at if self._hume_connected_at else 0.0
+                            if ready_wait >= 8.0:
+                                logger.warning(
+                                    "Hume readiness event not received in time; forcing audio passthrough"
+                                )
+                                self._hume_ready_event.set()
+                            else:
+                                if now - self._last_ready_wait_log_at >= 1.0:
+                                    logger.warning(
+                                        "Dropped early audio_input while waiting for Hume session readiness"
+                                    )
+                                    self._last_ready_wait_log_at = now
+                                continue
+                        await self.hume_ws.send(json.dumps(payload))
+                        continue
                     elif msg_type == "assistant_input":
                         # Guardrail: only backend-generated injections should reach Hume.
                         logger.warning(f"Blocked client-originated assistant_input for session {self.session_id}")
                         continue
-                except Exception:
-                    pass
+
+                except json.JSONDecodeError:
+                    logger.warning(f"Dropped non-JSON client WS payload for session {self.session_id}")
+                    continue
+                except Exception as parse_err:
+                    logger.error(f"Error parsing client WS payload for session {self.session_id}: {parse_err}")
+                    continue
 
                 if self._hume_is_open():
                     await self.hume_ws.send(message)
         except Exception as e:
             logger.error(f"Client to Hume proxy error for session {self.session_id}: {e}")
 
+    _SPEAKING_TIMEOUT_SECONDS: float = 8.0
+
+    def _check_speaking_timeout(self) -> None:
+        """Reset user_is_speaking and flush the injection queue if no audio_input
+        has arrived within SPEAKING_TIMEOUT_SECONDS.  Called on every Hume message
+        so the check runs even when Hume is actively streaming responses.
+        """
+        if not self.user_is_speaking:
+            return
+        if self._last_audio_input_time == 0.0:
+            return
+        if time.time() - self._last_audio_input_time > self._SPEAKING_TIMEOUT_SECONDS:
+            logger.warning(
+                f"user_is_speaking timeout ({self._SPEAKING_TIMEOUT_SECONDS}s) "
+                f"for session {self.session_id} — resetting and flushing queue"
+            )
+            self.user_is_speaking = False
+
+    async def _flush_injection_queue(self) -> None:
+        """Drain injection_queue, sending each item to Hume in order."""
+        while self.injection_queue:
+            queued = self.injection_queue.pop(0)
+            await self._send_injection(queued)
+
     async def _proxy_hume_to_client(self) -> None:
         """Forward raw WebSocket messages from Hume to the frontend.
 
         Polls until Hume is connected (lazy connect), then streams continuously.
+        On every message, checks whether user_is_speaking has timed out so the
+        injection queue never stalls indefinitely.
         """
         try:
             while self._running:
@@ -204,13 +309,28 @@ class HumeClient:
                     logger.info(f"[proxy] Hume→client loop ACTIVE for session {self.session_id}")
                     async for message in self.hume_ws:
                         if isinstance(message, bytes):
-                            logger.info(f"[proxy] Hume→client: binary {len(message)} bytes")
+                            logger.debug(f"[proxy] Hume→client: binary {len(message)} bytes")
                         else:
                             try:
-                                msg_type = json.loads(message).get("type", "?")
+                                parsed = json.loads(message)
+                                msg_type = parsed.get("type", "?")
+                                if msg_type in ("chat_metadata", "session_settings", "session_settings_applied"):
+                                    self._hume_ready_event.set()
+                                elif msg_type != "error" and not self._hume_ready_event.is_set():
+                                    # Some EVI versions don't emit explicit session_settings_applied.
+                                    # Treat first non-error event as ready to avoid indefinite audio drops.
+                                    self._hume_ready_event.set()
+                                # Log full message for non-audio types so we can see errors
+                                if msg_type not in ("audio_output",):
+                                    logger.info(f"[proxy] Hume→client: [{msg_type}] {str(message)[:300]}")
+                                else:
+                                    logger.debug(f"[proxy] Hume→client: [audio_output] len={len(parsed.get('data',''))}")
                             except Exception:
-                                msg_type = "?"
-                            logger.info(f"[proxy] Hume→client: [{msg_type}] {str(message)[:200]}")
+                                logger.info(f"[proxy] Hume→client: (unparseable) {str(message)[:200]}")
+
+                        # Check timeout on every message so a stalled speaking flag
+                        # gets cleared even when the Hume loop is actively running.
+                        self._check_speaking_timeout()
 
                         if self.client_ws:
                             if isinstance(message, bytes):
@@ -220,19 +340,24 @@ class HumeClient:
                                 try:
                                     data = json.loads(message)
                                     msg_type = data.get("type", "")
-                                    # User finished speaking — flush any queued injections
-                                    if msg_type in ("user_interruption", "user_message", "assistant_end"):
+                                    # Use explicit Hume turn events for speaking state.
+                                    if msg_type == "user_interruption":
+                                        self.user_is_speaking = True
+                                    if msg_type in ("user_message", "assistant_end"):
                                         self.user_is_speaking = False
-                                        while self.injection_queue:
-                                            queued = self.injection_queue.pop(0)
-                                            await self._send_injection(queued)
+                                    if not self.user_is_speaking and self.injection_queue:
+                                        await self._flush_injection_queue()
                                 except Exception:
                                     pass
                     # hume_ws closed naturally — exit loop
                     logger.info(f"[proxy] Hume WS closed, exiting proxy loop for session {self.session_id}")
+                    self._hume_ready_event.clear()
                     break
                 else:
-                    # Hume not yet connected — wait for lazy connect
+                    # Hume not yet connected — also check timeout in the polling branch
+                    self._check_speaking_timeout()
+                    if not self.user_is_speaking and self.injection_queue:
+                        await self._flush_injection_queue()
                     await asyncio.sleep(0.1)
         except Exception as e:
             logger.error(f"Hume to client proxy error for session {self.session_id}: {e}")
@@ -240,6 +365,8 @@ class HumeClient:
     async def close(self) -> None:
         """Cleanly close the Hume WebSocket connection."""
         self._running = False
+        self._hume_ready_event.clear()
+        self._hume_connected_at = 0.0
         if self._hume_is_open():
             try:
                 await self.hume_ws.close()

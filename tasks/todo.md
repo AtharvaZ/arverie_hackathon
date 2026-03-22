@@ -166,3 +166,18 @@
 - [ ] Name modal gates desk navigation
 - [ ] /session and /journal links work from desk
 - [ ] No dead imports or routes
+
+---
+
+## Session: 2026-03-22 (bugfix/hume-ws-1006)
+
+### Task: Frontend canvas Hume voice closes with 1006 and Hume payload parse errors
+
+**Plan:**
+
+- [x] Trace frontend `useHumeVoice` connect/disconnect lifecycle for closed `AudioContext` node creation
+- [x] Trace backend `HumeClient` proxying path for malformed/early `audio_input` forwarding to Hume
+- [x] Add backend guardrails: validate client `audio_input`, build canonical forwarded payload, and gate first audio until Hume session ack
+- [x] Add frontend cancellation guard: avoid creating media/source/processor nodes after disconnect/unmount
+- [x] Add regression test coverage for backend forwarded payload shape and malformed `audio_input` handling
+- [x] Run targeted tests and capture verification steps
