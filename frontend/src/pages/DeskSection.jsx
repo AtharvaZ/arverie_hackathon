@@ -361,9 +361,9 @@ const DESK_CSS = `
 
 /* ── back paper (previous drawing, peeks from behind main canvas) ── */
 .back-paper {
-  position:absolute; top:6%; left:11%; width:37%; height:75%;
+  position:absolute; top:11%; left:10%; width:43%; height:57%;
   background:var(--paper-lo); border-radius:2px; z-index:4;
-  transform:rotate(8deg) translateX(52%);
+  transform:rotate(8deg) translateX(47%);
   box-shadow:0 4px 18px rgba(20,10,2,.28), 0 1px 4px rgba(20,10,2,.14);
   pointer-events:none; overflow:hidden;
 }
@@ -371,14 +371,14 @@ const DESK_CSS = `
   width:100%;
   height:100%;
   object-fit:contain;
-  object-position:left top;
+  object-position:center center;
   background:var(--paper-lo);
   opacity:0.7;
 }
 
 /* ── big drawing paper ── */
 .big-paper {
-  position:absolute; top:6%; left:13%; width:35%; height:73%;
+  position:absolute; top:6%; left:17%; width:35%; height:73%;
   background:var(--paper); border-radius:2px; cursor:pointer; z-index:5;
   box-shadow:0 8px 28px rgba(20,10,2,.38),0 3px 8px rgba(20,10,2,.22),inset 0 0 0 .5px rgba(0,0,0,.05);
   transition:transform .32s cubic-bezier(.2,.85,.3,1),box-shadow .32s;

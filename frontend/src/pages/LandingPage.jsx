@@ -28,6 +28,27 @@ const prefersReduced =
 
 // ─── Footer ──────────────────────────────────────────────────────────────────
 function Footer() {
+  const footerCards = [
+    {
+      icon: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z",
+      title: "Expressive Canvas",
+      desc: "Pour your feelings onto an open canvas. A distraction-free space where your strokes reflect your inner state.",
+      offset: 0,
+    },
+    {
+      icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
+      title: "Empathic AI",
+      desc: "Receive warm, gentle reflections on your art. Our AI guide helps you unpack your thoughts securely.",
+      offset: -16,
+    },
+    {
+      icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
+      title: "Mood Journal",
+      desc: "Collect your daily reflections. Turn your emotional history into a timeless, beautifully bound archive.",
+      offset: -8,
+    },
+  ];
+
   return (
     <footer
       style={{
@@ -45,16 +66,31 @@ function Footer() {
           fontFamily: "'Cormorant Garamond', serif",
           fontSize: "clamp(28px, 4vw, 48px)",
           fontStyle: "italic",
-          letterSpacing: "8px",
-          color: "#FAF6E6",
+          letterSpacing: "5px",
+          color: "#D8F4DD",
           textShadow:
-            "0 2px 20px rgba(0,0,0,0.7), 0 0 40px rgba(200,160,40,0.2)",
-          marginBottom: "64px",
+            "0 2px 20px rgba(0,0,0,0.68), 0 0 36px rgba(92, 198, 126, 0.26)",
+          marginBottom: "18px",
           textAlign: "center",
         }}
       >
-        Welcome to Arverié
+        A Journey from Expression to Reflection
       </h2>
+      <p
+        style={{
+          margin: "0 0 64px",
+          maxWidth: "760px",
+          textAlign: "center",
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: "clamp(16px, 1.7vw, 22px)",
+          letterSpacing: "0.8px",
+          color: "rgba(214, 242, 219, 0.86)",
+          lineHeight: 1.5,
+        }}
+      >
+        Create freely, receive gentle guidance, and preserve each emotional
+        chapter in your personal journal.
+      </p>
       <div
         style={{
           display: "flex",
@@ -65,39 +101,21 @@ function Footer() {
           alignItems: "flex-start",
         }}
       >
-        {[
-          {
-            icon: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z",
-            title: "Expressive Canvas",
-            desc: "Pour your feelings onto an open canvas. A distraction-free space where your strokes reflect your inner state.",
-            offset: 0,
-          },
-          {
-            icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
-            title: "Empathic AI",
-            desc: "Receive warm, gentle reflections on your art. Our AI guide helps you unpack your thoughts securely.",
-            offset: -16,
-          },
-          {
-            icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
-            title: "Mood Journal",
-            desc: "Collect your daily reflections. Turn your emotional history into a timeless, beautifully bound archive.",
-            offset: -8,
-          },
-        ].map((item, i) => (
+        {footerCards.map((item, i) => (
           <motion.div
             key={i}
             whileHover={{ y: -8, transition: { duration: 0.28 } }}
             style={{
               transform: `translateY(${item.offset}px)`,
-              background: "rgba(20, 16, 12, 0.58)",
+              background:
+                "linear-gradient(165deg, rgba(35, 78, 49, 0.32), rgba(20, 50, 31, 0.38))",
               backdropFilter: "blur(18px)",
               WebkitBackdropFilter: "blur(18px)",
-              border: "0.5px solid rgba(200,160,64,0.18)",
+              border: "1px solid rgba(166, 244, 185, 0.24)",
               borderRadius: "14px",
               padding: "40px 32px",
               boxShadow:
-                "0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(200,160,64,0.08)",
+                "0 10px 40px rgba(0,0,0,0.34), inset 0 1px 0 rgba(200, 255, 214, 0.1)",
               flex: 1,
               display: "flex",
               flexDirection: "column",
@@ -111,8 +129,9 @@ function Footer() {
                 width: "64px",
                 height: "64px",
                 borderRadius: "50%",
-                background: "rgba(200,160,64,0.08)",
-                border: "1px solid rgba(200,160,64,0.22)",
+                background:
+                  "radial-gradient(circle at 35% 30%, rgba(190, 255, 205, 0.45), rgba(119, 214, 143, 0.14))",
+                border: "1px solid rgba(170, 246, 189, 0.48)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -123,7 +142,7 @@ function Footer() {
                 width="24"
                 height="24"
                 fill="none"
-                stroke="rgba(200,160,64,0.9)"
+                stroke="rgba(212, 255, 225, 0.96)"
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -137,7 +156,7 @@ function Footer() {
                 fontFamily: "'Cormorant Garamond', serif",
                 fontSize: "22px",
                 fontWeight: 300,
-                color: "#E3CFA7",
+                color: "#D8F7DF",
                 margin: 0,
               }}
             >
@@ -145,11 +164,11 @@ function Footer() {
             </h3>
             <p
               style={{
-                fontFamily: "sans-serif",
+                fontFamily: "Cinzel, serif",
                 fontSize: "13px",
-                letterSpacing: "0.5px",
+                letterSpacing: "0.08em",
                 lineHeight: 1.7,
-                color: "rgba(245,235,200,0.65)",
+                color: "rgba(218, 244, 224, 0.78)",
                 margin: 0,
               }}
             >
@@ -163,7 +182,7 @@ function Footer() {
           marginTop: "80px",
           fontSize: "11px",
           letterSpacing: "2px",
-          color: "rgba(245,239,224,0.3)",
+          color: "rgba(203, 236, 210, 0.42)",
           textTransform: "uppercase",
         }}
       >
@@ -762,9 +781,11 @@ export default function LandingPage() {
               ref={btnRef}
               onClick={() => navigate("/session")}
               whileHover={{
-                backgroundColor: "rgba(200,160,64,0.12)",
-                borderColor: "rgba(200,160,64,0.8)",
-                color: "#F5EFE0",
+                backgroundColor: "rgba(70, 161, 95, 0.36)",
+                borderColor: "rgba(181, 255, 201, 0.95)",
+                color: "#F3FFF6",
+                boxShadow:
+                  "0 12px 34px rgba(20, 58, 31, 0.52), 0 0 24px rgba(139, 243, 166, 0.45), inset 0 0 0 1px rgba(219, 255, 229, 0.25)",
                 y: -2,
               }}
               whileTap={{ scale: 0.97 }}
@@ -773,29 +794,32 @@ export default function LandingPage() {
                 alignItems: "center",
                 gap: "10px",
                 fontFamily: "Cinzel, serif",
-                fontSize: "11px",
+                fontSize: "12px",
                 letterSpacing: "0.22em",
-                color: "var(--gold)",
-                background: "transparent",
-                border: "1.5px solid var(--gold)",
+                color: "#E3F8E8",
+                background:
+                  "linear-gradient(180deg, rgba(16, 33, 22, 0.76), rgba(9, 22, 14, 0.82))",
+                border: "1.5px solid rgba(129, 225, 157, 0.72)",
                 borderRadius: "999px",
-                padding: "12px 36px",
+                padding: "14px 46px",
                 cursor: "pointer",
                 pointerEvents: "auto",
                 marginBottom: "36px",
                 opacity: 0,
+                boxShadow:
+                  "0 8px 26px rgba(0,0,0,0.42), inset 0 1px 0 rgba(210, 255, 220, 0.18)",
                 transition:
-                  "background-color 0.22s ease, border-color 0.22s ease, color 0.22s ease",
+                  "background-color 0.24s ease, border-color 0.24s ease, color 0.24s ease, box-shadow 0.24s ease, transform 0.24s ease",
               }}
             >
               <span
-                style={{ fontSize: "8px", opacity: 0.7, color: "var(--gold)" }}
+                style={{ fontSize: "8px", opacity: 0.78, color: "#B5F8C7" }}
               >
                 ◆
               </span>
               Begin Your Session
               <span
-                style={{ fontSize: "8px", opacity: 0.7, color: "var(--gold)" }}
+                style={{ fontSize: "8px", opacity: 0.78, color: "#B5F8C7" }}
               >
                 ◆
               </span>

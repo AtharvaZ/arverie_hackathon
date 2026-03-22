@@ -788,18 +788,21 @@ export default function JournalPage() {
     const userId = session.userId || user.id;
     if (!userId) return;
     refreshPastSessions(userId);
+
+    const onFocus = () => refreshPastSessions(userId);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [refreshPastSessions, session.userId, user.id]);
 
   const entries = useMemo(() => {
-    return safeArray(pastSessions)
+    const normalized = safeArray(pastSessions)
       .map(normalizeSessionRow)
-      .sort((a, b) => {
-        const aHasDrawing = Boolean(a.drawingUrl);
-        const bHasDrawing = Boolean(b.drawingUrl);
-        if (aHasDrawing !== bHasDrawing) return aHasDrawing ? -1 : 1;
-        return b.sortDate - a.sortDate;
-      })
-      .slice(0, 5);
+      .sort((a, b) => b.sortDate - a.sortDate);
+
+    const drawable = normalized.filter((entry) => Boolean(entry.drawingUrl));
+    const source = drawable.length > 0 ? drawable : normalized;
+
+    return source.slice(0, 5);
   }, [pastSessions]);
 
   useEffect(() => {
@@ -861,6 +864,23 @@ export default function JournalPage() {
     setClosing(true);
     setTimeout(() => navigate(-1), 380);
   }
+
+  useEffect(() => {
+    if (phase !== "spread") return;
+    const onKeyDown = (event) => {
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        flipForward();
+      }
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        flipBack();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [phase, flipForward, flipBack]);
 
   const activeEntry = entries[spreadIndex] || null;
   const maxSpread = Math.max(entries.length - 1, 0);
@@ -963,6 +983,8 @@ export default function JournalPage() {
               flexDirection: "column",
               alignItems: "center",
               gap: "16px",
+              width: "100%",
+              maxHeight: "calc(100vh - 80px)",
             }}
           >
             {activeEntry ? (
@@ -980,31 +1002,57 @@ export default function JournalPage() {
                   onOpenLetter={() => setActiveModal("letter")}
                 />
 
-                <div style={{ display: "flex", gap: "12px" }}>
-                  <button
-                    className="btn"
-                    onClick={flipBack}
-                    disabled={!hasPrev}
+                <div
+                  style={{
+                    position: "fixed",
+                    left: "50%",
+                    bottom: "16px",
+                    transform: "translateX(-50%)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "8px",
+                    zIndex: 120,
+                  }}
+                >
+                  <div style={{ display: "flex", gap: "12px" }}>
+                    <button
+                      className="btn"
+                      onClick={flipBack}
+                      disabled={!hasPrev}
+                      style={{
+                        padding: "6px 18px",
+                        fontSize: "10px",
+                        opacity: hasPrev ? 1 : 0.18,
+                      }}
+                    >
+                      prev
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={flipForward}
+                      disabled={!hasNext}
+                      style={{
+                        padding: "6px 18px",
+                        fontSize: "10px",
+                        opacity: hasNext ? 1 : 0.18,
+                      }}
+                    >
+                      next
+                    </button>
+                  </div>
+                  <p
                     style={{
-                      padding: "6px 18px",
+                      margin: 0,
+                      fontFamily: "Cinzel, serif",
                       fontSize: "10px",
-                      opacity: hasPrev ? 1 : 0.18,
+                      letterSpacing: "0.1em",
+                      color: "var(--text-muted)",
                     }}
                   >
-                    prev
-                  </button>
-                  <button
-                    className="btn"
-                    onClick={flipForward}
-                    disabled={!hasNext}
-                    style={{
-                      padding: "6px 18px",
-                      fontSize: "10px",
-                      opacity: hasNext ? 1 : 0.18,
-                    }}
-                  >
-                    next
-                  </button>
+                    PAGE {entries.length > 0 ? spreadIndex + 1 : 0} /{" "}
+                    {entries.length}
+                  </p>
                 </div>
               </>
             ) : (
