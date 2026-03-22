@@ -15,6 +15,16 @@ import { useHumeVoice } from "../hooks/useHumeVoice";
 
 const SNAPSHOT_INTERVAL_MS = 7000;
 
+function isFillerMessage(value) {
+  if (typeof value !== "string") return false;
+  const text = value.trim().toLowerCase();
+  if (!text) return false;
+  if (text.length > 20) return false;
+  return /^(h+m+|h+mm+|h+mmm+|um+|uh+|mm+|mmm+|huh+|hm+|okay+|ok+|k+)[.!?]*$/.test(
+    text,
+  );
+}
+
 // ─── AI Companion Panel ──────────────────────────────────────────────────────
 
 function AIPanel({
@@ -389,6 +399,7 @@ export default function CanvasPage() {
     async (text) => {
       const trimmed = (text || "").trim();
       if (!trimmed) return;
+      if (isFillerMessage(trimmed)) return;
       if (trimmed.length > 1200) {
         console.warn("[CanvasPage] Message too long; max 1200 characters");
         return;
@@ -646,6 +657,15 @@ export default function CanvasPage() {
           canvasSummary,
           dialogueRef.current,
         );
+        localStorage.setItem(
+          "session.endPayload",
+          JSON.stringify({
+            drawing_url: result.drawing_url || "",
+            vision_description: result.vision_description || "",
+            reflection_questions: result.reflection_questions || [],
+            canvas_summary: canvasSummary,
+          }),
+        );
         setSession((s) => ({
           ...s,
           drawingDataURL: dataURL,
@@ -658,6 +678,15 @@ export default function CanvasPage() {
         }));
       } catch (err) {
         console.error("[CanvasPage] Session end failed:", err);
+        localStorage.setItem(
+          "session.endPayload",
+          JSON.stringify({
+            drawing_url: "",
+            vision_description: "",
+            reflection_questions: [],
+            canvas_summary: canvasSummary,
+          }),
+        );
         setSession((s) => ({
           ...s,
           drawingDataURL: dataURL,

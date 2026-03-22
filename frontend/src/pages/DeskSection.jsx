@@ -367,7 +367,14 @@ const DESK_CSS = `
   box-shadow:0 4px 18px rgba(20,10,2,.28), 0 1px 4px rgba(20,10,2,.14);
   pointer-events:none; overflow:hidden;
 }
-.back-paper img { width:100%; height:100%; object-fit:cover; opacity:0.7; }
+.back-paper img {
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:left top;
+  background:var(--paper-lo);
+  opacity:0.7;
+}
 
 /* ── big drawing paper ── */
 .big-paper {
@@ -585,7 +592,34 @@ export default function DeskSection({
   sectionId = "desk-section",
 }) {
   const navigate = useNavigate();
-  const { user, setUserName, session, pastSessions } = useApp();
+  const { user, setUserName, session, pastSessions, refreshPastSessions } =
+    useApp();
+
+  const getSessionPalette = (sessionRow) => {
+    const fromData = Array.isArray(sessionRow?.data?.color_palette)
+      ? sessionRow.data.color_palette
+      : [];
+    const fromSummary = Array.isArray(
+      sessionRow?.data?.canvas_summary?.colors_used,
+    )
+      ? sessionRow.data.canvas_summary.colors_used
+      : [];
+    const unique = [];
+    [...fromData, ...fromSummary].forEach((token) => {
+      if (typeof token !== "string") return;
+      const value = token.trim();
+      if (!value) return;
+      if (!unique.includes(value)) unique.push(value);
+    });
+    return unique.slice(0, 3);
+  };
+
+  const latestDrawingUrl =
+    session?.drawingDataURL ||
+    session?.drawingUrl ||
+    pastSessions?.[0]?.drawing_url ||
+    pastSessions?.[0]?.data?.drawing_url ||
+    null;
 
   // modal state — show if no name (user.name is always set in AppContext for now)
   const [showModal, setShowModal] = useState(false);
@@ -604,6 +638,16 @@ export default function DeskSection({
   const progressRef = useRef(0);
 
   const TOTAL_PHASES = 2;
+
+  useEffect(() => {
+    const userId = session?.userId || user?.id;
+    if (!userId) return;
+    refreshPastSessions(userId);
+
+    const onFocus = () => refreshPastSessions(userId);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refreshPastSessions, session?.userId, user?.id]);
 
   useEffect(() => {
     if (typeof onDeskInViewChange !== "function") return;
@@ -876,9 +920,7 @@ export default function DeskSection({
 
                 {/* Back paper — previous drawing peeks behind main canvas */}
                 <div className="back-paper">
-                  {session?.drawingDataURL && (
-                    <img src={session.drawingDataURL} alt="" />
-                  )}
+                  {latestDrawingUrl && <img src={latestDrawingUrl} alt="" />}
                 </div>
 
                 {/* Big drawing paper */}
@@ -932,9 +974,9 @@ export default function DeskSection({
                 {/* Palette cards — latest sessions (1–3), or black placeholders if none */}
                 <div className="palette-cards">
                   {pastSessions.length > 0
-                    ? pastSessions.slice(-3).map((s, i) => {
+                    ? pastSessions.slice(0, 3).map((s, i) => {
                         const rotations = ["-5deg", "2deg", "-2.5deg"];
-                        const colors = s.data?.color_palette || [];
+                        const colors = getSessionPalette(s);
                         const dateLabel = new Date(
                           s.created_at,
                         ).toLocaleDateString("en-US", {

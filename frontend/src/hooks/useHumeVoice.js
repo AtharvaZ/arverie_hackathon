@@ -9,6 +9,17 @@ const SAMPLE_RATE = 16000;
 const DEFAULT_OUTPUT_SAMPLE_RATE = 48000;
 const BUFFER_SIZE = 4096;
 const MAX_AUDIO_B64_CHARS = 12000;
+const FILLER_SUPPRESSION_MS = 2500;
+
+function isFillerUtterance(value) {
+  if (typeof value !== "string") return false;
+  const text = value.trim().toLowerCase();
+  if (!text) return false;
+  if (text.length > 20) return false;
+  return /^(h+m+|h+mm+|h+mmm+|um+|uh+|mm+|mmm+|huh+|hm+|okay+|ok+|k+)[.!?]*$/.test(
+    text,
+  );
+}
 
 function floatTo16BitPCM(floatSamples) {
   const buffer = new Int16Array(floatSamples.length);
@@ -165,6 +176,7 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
   const playQueueRef = useRef([]);
   const isPlayingRef = useRef(false);
   const connectGenerationRef = useRef(0);
+  const suppressAssistantUntilRef = useRef(0);
 
   // Play the next chunk from the queue
   const playNext = useCallback(() => {
@@ -206,6 +218,9 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
       const type = data.type || "";
 
       if (type === "audio_output") {
+        if (Date.now() < suppressAssistantUntilRef.current) {
+          return;
+        }
         // Queue audio chunk for sequential playback
         const hintedRate = Number(data.sample_rate);
         const decoded = decodeAudioOutput(data.data, hintedRate);
@@ -213,8 +228,19 @@ export function useHumeVoice({ onTranscript, onAIMessage } = {}) {
         if (!isPlayingRef.current) playNext();
       } else if (type === "user_message") {
         const text = data.message?.content ?? "";
+        if (isFillerUtterance(text)) {
+          suppressAssistantUntilRef.current =
+            Date.now() + FILLER_SUPPRESSION_MS;
+          playQueueRef.current = [];
+          isPlayingRef.current = false;
+          setIsSpeaking(false);
+          return;
+        }
         if (text && onTranscript) onTranscript(text);
       } else if (type === "assistant_message") {
+        if (Date.now() < suppressAssistantUntilRef.current) {
+          return;
+        }
         const text = data.message?.content ?? "";
         if (text && onAIMessage) onAIMessage(text);
       } else if (type === "user_interruption") {
