@@ -1,18 +1,20 @@
 # Arverie
 
-Arverie is a voice-and-canvas reflection app built for emotional presence, expressive drawing, and meaningful post-session insight.
+Arverie is a contemplative canvas where voice, motion, and color become one reflective conversation.
 
-It is designed for hackathon reality:
+It is built to feel calm for users and predictable for engineers:
+
 - Fast local setup
 - Clear frontend/backend separation
-- Strict backend env validation so failures happen early, not during demos
+- Strict backend env validation so failures happen early, not in production
 
 ## What Makes It Different
 
 Most journaling apps start with text.
-Arverie starts with rhythm: voice, movement, color, and reflection in one flow.
+Arverie starts with gesture: speak, draw, pause, reflect.
 
 Users can:
+
 - Start a guided session
 - Draw on a live canvas while interacting with voice AI
 - End with personalized reflection outputs saved to Supabase
@@ -20,12 +22,14 @@ Users can:
 ## Tech Stack
 
 ### Frontend
+
 - React 18 + Vite 5
 - tldraw for canvas interactions
 - framer-motion + gsap for motion
 - Location: frontend
 
 ### Backend
+
 - FastAPI + Uvicorn
 - Anthropic integration
 - Hume integration
@@ -35,7 +39,7 @@ Users can:
 ## Project Structure
 
 ```text
-arverie_hackathon/
+arverie/
 ├── backend/
 │   ├── main.py
 │   ├── models.py
@@ -65,6 +69,7 @@ The backend enforces required secrets at startup.
 If any required key is missing or placeholder-like, backend startup fails immediately.
 
 Create this file:
+
 - backend/.env
 
 Required variables:
@@ -86,6 +91,7 @@ ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
 ```
 
 Optional frontend variable:
+
 - frontend/.env
 
 ```env
@@ -93,6 +99,7 @@ VITE_API_URL=http://localhost:8000
 ```
 
 Notes:
+
 - If VITE_API_URL is not set, frontend already defaults to http://localhost:8000.
 - Generate SESSION_TOKEN_SECRET with a strong random value, for example:
   - openssl rand -hex 32
@@ -138,6 +145,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Backend URLs:
+
 - API base: http://localhost:8000
 - Interactive docs: http://localhost:8000/docs
 
@@ -151,6 +159,7 @@ npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
 Frontend URL:
+
 - http://127.0.0.1:5173
 
 ## Build Commands
@@ -163,15 +172,17 @@ npm run build
 npm run preview
 ```
 
-## Common Hackathon Safety Checks
+## Operational Safety Checks
 
 Before demoing:
+
 - Confirm backend is running at port 8000
 - Confirm frontend is running at 127.0.0.1:5173
 - Confirm backend/.env has real values (not placeholders)
 - Confirm Supabase URL and service key belong to the intended project
 
 If setup fails:
+
 - Re-run pip install -r requirements.txt in backend virtualenv
 - Re-check backend/.env variable names for typos
 - Verify no other process is using ports 8000 or 5173
