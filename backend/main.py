@@ -39,7 +39,7 @@ from claude_calls import (
     call_reflection_questions,
     call_session_letter,
 )
-from supabase_client import create_session, get_sessions, complete_session, upload_drawing
+from supabase_client import create_session, get_sessions, complete_session, upload_drawing, delete_session
 from hume_client import HumeClient
 from input_security import detect_suspicious_prompt_input, normalize_user_text
 from rate_limits import SlidingWindowRateLimiter
@@ -729,6 +729,23 @@ async def list_sessions(
         raise
     except Exception as e:
         logger.error(f"List sessions failed for user {user_id}: {e}")
+        return JSONResponse(status_code=500, content={"error": "Something went wrong"})
+
+
+@app.delete("/sessions/{user_id}/{session_id}")
+async def delete_session_route(
+    user_id: str,
+    session_id: str,
+    authorization: str | None = Header(default=None),
+) -> dict:
+    try:
+        _authorize_user_access(user_id, authorization)
+        delete_session(session_id)
+        return {"deleted": session_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Delete session failed for {session_id}: {e}")
         return JSONResponse(status_code=500, content={"error": "Something went wrong"})
 
 

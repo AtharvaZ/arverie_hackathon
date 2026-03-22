@@ -174,4 +174,8 @@ export const api = {
 
   // GET /sessions/{user_id} — returns last 7 sessions
   getSessions: (userId) => request(`/sessions/${userId}`, {}, "user"),
+
+  // DELETE /sessions/{user_id}/{session_id} — deletes session row + drawing
+  deleteSession: (userId, sessionId) =>
+    request(`/sessions/${userId}/${sessionId}`, { method: "DELETE" }, "user"),
 };

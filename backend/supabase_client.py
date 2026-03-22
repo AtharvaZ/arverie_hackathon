@@ -56,6 +56,22 @@ def complete_session(session_id: str, data: dict) -> None:
         raise
 
 
+def delete_session(session_id: str) -> None:
+    """Delete a session row and its drawing from storage."""
+    try:
+        client = get_supabase()
+        # Remove drawing from storage (ignore errors if file doesn't exist)
+        try:
+            client.storage.from_("drawings").remove([f"{session_id}.png"])
+        except Exception as e:
+            logger.warning(f"Could not remove drawing for session {session_id}: {e}")
+        client.table("sessions").delete().eq("id", session_id).execute()
+        logger.info(f"Deleted session: {session_id}")
+    except Exception as e:
+        logger.error(f"Failed to delete session {session_id}: {e}")
+        raise
+
+
 def upload_drawing(session_id: str, image_bytes: bytes) -> str:
     """Upload PNG to drawings bucket as {session_id}.png and return the public URL."""
     try:
